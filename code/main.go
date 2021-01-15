@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 )
 
@@ -42,6 +43,12 @@ func main() {
 	_, err = c.Write(ping)
 	assert(err)
 	buf := make([]byte, 65535)
+	n, err := c.Read(buf)
+	assert(err)
+	fmt.Println(hex.Dump(buf[:n]))
+	var pingResp data.PingResponse
+	assert(bencode.Decode(buf[:n], &pingResp))
+	fmt.Println(pingResp)
 	for {
 		n, err := c.Read(buf)
 		assert(err)

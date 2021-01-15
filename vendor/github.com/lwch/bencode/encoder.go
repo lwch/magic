@@ -111,6 +111,18 @@ func encode(buf io.Writer, v reflect.Value) error {
 		for i := 0; i < t.NumField(); i++ {
 			kField := t.Field(i)
 			vField := v.Field(i)
+			if kField.Anonymous { // inherit struct
+				var data bytes.Buffer
+				err = encode(&data, vField)
+				if err != nil {
+					return err
+				}
+				bt := data.Bytes()
+				if bt[0] == 'd' && bt[len(bt)-1] == 'e' {
+					buf.Write(bt[1 : len(bt)-1])
+				}
+				continue
+			}
 			k := strings.ToLower(kField.Name)
 			tag := kField.Tag.Get("bencode")
 			if len(tag) > 0 {
