@@ -5,9 +5,6 @@ import "github.com/lwch/bencode"
 type pingRequest struct {
 	common
 	query
-	A struct {
-		ID [20]byte `bencode:"id"`
-	} `bencode:"a"`
 }
 
 // PingReq build ping request packet
