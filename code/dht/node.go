@@ -101,14 +101,14 @@ func (n *Node) Work(id [20]byte) {
 		n.c.SetReadDeadline(time.Now().Add(10 * time.Second))
 		len, err := n.c.Read(buf)
 		if err != nil {
-			if strings.Contains(err.Error(), "timeout") {
-				continue
-			}
 			for i := 0; i < maxFindCache; i++ {
 				if n.findTX[i].tx != "" &&
 					time.Now().Unix()-n.findTX[i].t >= 10 {
 					return
 				}
+			}
+			if strings.Contains(err.Error(), "timeout") {
+				continue
 			}
 			logging.Error("read data of %s, err=%v", n.c.RemoteAddr().String(), err)
 			return

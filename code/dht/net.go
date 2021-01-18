@@ -15,6 +15,9 @@ import (
 
 // Find find_node
 func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
+	if mgr.isFull() {
+		return nil, nil
+	}
 	c, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
 		return nil, err
