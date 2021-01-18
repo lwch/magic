@@ -17,8 +17,14 @@ import (
 
 const maxFindCache = 100
 
+type findInfo struct {
+	local [20]byte
+	tx    string
+}
+
 // Node host
 type Node struct {
+	local   [20]byte
 	id      [20]byte
 	c       *net.UDPConn
 	chWrite chan []byte
@@ -30,15 +36,16 @@ type Node struct {
 
 	// discovery
 	findIdx int
-	findTX  [maxFindCache]string
+	findTX  [maxFindCache]findInfo
 }
 
-func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) (*Node, error) {
+func newNode(parent *NodeMgr, local, id [20]byte, addr net.UDPAddr) (*Node, error) {
 	c, err := net.DialUDP("udp", nil, &addr)
 	if err != nil {
 		return nil, err
 	}
 	node := &Node{
+		local:   local,
 		id:      id,
 		c:       c,
 		chWrite: make(chan []byte),
@@ -119,11 +126,14 @@ func (n *Node) discovery(id [20]byte) {
 		select {
 		case <-time.After(30 * time.Second):
 			rand.Read(next[:])
-			data, tx, err := data.FindReq(next, id)
+			data, localID, tx, err := data.FindReq(next)
 			if err != nil {
 				continue
 			}
-			n.findTX[n.findIdx%maxFindCache] = tx
+			n.findTX[n.findIdx%maxFindCache] = findInfo{
+				local: localID,
+				tx:    tx,
+			}
 			n.findIdx++
 			n.chWrite <- data
 		case <-n.ctx.Done():
@@ -143,14 +153,14 @@ func (n *Node) handleRequest(buf []byte) {
 
 func (n *Node) handleResponse(buf []byte, hdr data.Hdr) {
 	for i := 0; i < maxFindCache; i++ {
-		if n.findTX[i] == hdr.Transaction {
-			n.handleDiscovery(buf)
+		if n.findTX[i].tx == hdr.Transaction {
+			n.handleDiscovery(buf, n.findTX[i].local)
 			return
 		}
 	}
 }
 
-func (n *Node) handleDiscovery(buf []byte) {
+func (n *Node) handleDiscovery(buf []byte, id [20]byte) {
 	var findResp data.FindResponse
 	err := bencode.Decode(buf, &findResp)
 	if err != nil {
@@ -173,7 +183,7 @@ func (n *Node) handleDiscovery(buf []byte) {
 		if uniq[fmt.Sprintf("%x", next)] {
 			continue
 		}
-		node, err := newNode(n.parent, next, net.UDPAddr{
+		node, err := newNode(n.parent, id, next, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		})

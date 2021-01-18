@@ -22,7 +22,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 	defer c.Close()
 	var next [20]byte
 	rand.Read(next[:])
-	find, _, err := data.FindReq(next, id)
+	find, localID, _, err := data.FindReq(next)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		if uniq[fmt.Sprintf("%x", next)] {
 			continue
 		}
-		node, err := newNode(mgr, next, net.UDPAddr{
+		node, err := newNode(mgr, localID, next, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		})

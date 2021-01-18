@@ -1,6 +1,10 @@
 package data
 
-import "github.com/lwch/bencode"
+import (
+	"math/rand"
+
+	"github.com/lwch/bencode"
+)
 
 // FindRequest find_node request
 type FindRequest struct {
@@ -18,7 +22,9 @@ type FindResponse struct {
 }
 
 // FindReq build find_node request packet
-func FindReq(id, target [20]byte) ([]byte, string, error) {
+func FindReq(target [20]byte) ([]byte, [20]byte, string, error) {
+	var id [20]byte
+	rand.Read(id[:])
 	hdr := newHdr(request)
 	data, err := bencode.Encode(FindRequest{
 		Hdr: hdr,
@@ -28,7 +34,7 @@ func FindReq(id, target [20]byte) ([]byte, string, error) {
 		}),
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, id, "", err
 	}
-	return data, hdr.Transaction, nil
+	return data, id, hdr.Transaction, nil
 }
