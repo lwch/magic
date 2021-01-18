@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/lwch/magic/code/dht"
@@ -16,6 +18,9 @@ var bootstrapAddrs []*net.UDPAddr
 var ID [20]byte
 
 func init() {
+	go func() {
+		runtime.Assert(http.ListenAndServe(":6060", nil))
+	}()
 	rand.Seed(time.Now().UnixNano())
 	copy(ID[:], fmt.Sprintf("my name is magic%04d", rand.Intn(9999)))
 	for _, addr := range []string{
