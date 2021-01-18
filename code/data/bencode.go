@@ -1,14 +1,37 @@
 package data
 
+import "github.com/lwch/bencode"
+
 const (
 	request  = "q"
 	response = "r"
 	err      = "e"
 )
 
-type common struct {
+// ReqType request type
+type ReqType string
+
+const (
+	// TypePing ping
+	TypePing ReqType = "ping"
+	// TypeFindNode find_node
+	TypeFindNode ReqType = "find_node"
+)
+
+// Hdr bencode header
+type Hdr struct {
 	Transaction string `bencode:"t"`
 	Type        string `bencode:"y"`
+}
+
+// IsRequest is request packet
+func (h Hdr) IsRequest() bool {
+	return h.Type == request
+}
+
+// IsResponse is response packet
+func (h Hdr) IsResponse() bool {
+	return h.Type == response
 }
 
 type query struct {
@@ -16,8 +39,8 @@ type query struct {
 	Data   interface{} `bencode:"a"`
 }
 
-func newCommon(t string) common {
-	return common{
+func newHdr(t string) Hdr {
+	return Hdr{
 		Transaction: Rand(32),
 		Type:        t,
 	}
@@ -28,4 +51,13 @@ func newQuery(action string, data interface{}) query {
 		Action: action,
 		Data:   data,
 	}
+}
+
+// ParseReqType parse request type
+func ParseReqType(data []byte) ReqType {
+	var t struct {
+		Type ReqType `bencode:"q"`
+	}
+	bencode.Decode(data, &t)
+	return t.Type
 }

@@ -18,7 +18,7 @@ type Decoder struct {
 
 // NewDecoder create decoder from io.Reader
 func NewDecoder(r io.Reader) Decoder {
-	return Decoder{r}
+	return Decoder{r: r}
 }
 
 // Decode decode data
@@ -35,7 +35,7 @@ func decode(r *bufio.Reader, v reflect.Value) error {
 	if v.Kind() != reflect.Ptr {
 		return errors.New("input value is not pointer")
 	}
-	ch, _, err := r.ReadRune()
+	ch, err := r.ReadByte()
 	if err != nil {
 		return err
 	}
@@ -50,9 +50,9 @@ func decode(r *bufio.Reader, v reflect.Value) error {
 }
 
 func decodeNumber(r *bufio.Reader, v reflect.Value) error {
-	var str []rune
+	var str []byte
 	for {
-		ch, _, err := r.ReadRune()
+		ch, err := r.ReadByte()
 		if err != nil {
 			return fmt.Errorf("decode number: %v", err)
 		}
@@ -85,7 +85,7 @@ func decodeNumber(r *bufio.Reader, v reflect.Value) error {
 func decodeDict(r *bufio.Reader, v reflect.Value) error {
 	key := reflect.New(reflect.TypeOf(""))
 	for {
-		ch, _, err := r.ReadRune()
+		ch, err := r.ReadByte()
 		if err != nil {
 			return fmt.Errorf("decode dict: %v", err)
 		}
@@ -96,7 +96,7 @@ func decodeDict(r *bufio.Reader, v reflect.Value) error {
 		if err != nil {
 			return err
 		}
-		ch, _, err = r.ReadRune()
+		ch, err = r.ReadByte()
 		switch ch {
 		case 'i':
 			err = setDictNumber(r, key.Elem().String(), v)
@@ -111,11 +111,11 @@ func decodeDict(r *bufio.Reader, v reflect.Value) error {
 	}
 }
 
-func decodeString(r *bufio.Reader, v reflect.Value, ch rune) error {
-	var len []rune
+func decodeString(r *bufio.Reader, v reflect.Value, ch byte) error {
+	var len []byte
 	len = append(len, ch)
 	for {
-		ch, _, err := r.ReadRune()
+		ch, err := r.ReadByte()
 		if err != nil {
 			return fmt.Errorf("decode string: %v", err)
 		}
@@ -124,9 +124,9 @@ func decodeString(r *bufio.Reader, v reflect.Value, ch rune) error {
 			if err != nil {
 				return fmt.Errorf("can not parse string size: %s", string(len))
 			}
-			data := make([]rune, size)
+			data := make([]byte, size)
 			for i := 0; uint64(i) < size; i++ {
-				data[i], _, err = r.ReadRune()
+				data[i], err = r.ReadByte()
 				if err != nil {
 					return fmt.Errorf("decode string value: %v", err)
 				}
@@ -160,52 +160,124 @@ func decodeString(r *bufio.Reader, v reflect.Value, ch rune) error {
 }
 
 func setDictDict(r *bufio.Reader, key string, v reflect.Value) error {
+	run := func(v reflect.Value) (error, bool) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if kField.Tag.Get("bencode") == key {
+				return decodeDict(r, v.Field(i)), true
+			}
+		}
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if strings.ToLower(kField.Name) == key {
+				return decodeDict(r, v.Field(i)), true
+			}
+		}
+		return nil, false
+	}
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		kField := t.Field(i)
-		if kField.Tag.Get("bencode") == key {
-			return decodeDict(r, v.Field(i))
+		if kField.Anonymous {
+			vField := v.Field(i)
+			err, ok := run(vField)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return err
+			}
 		}
 	}
-	for i := 0; i < t.NumField(); i++ {
-		kField := t.Field(i)
-		if strings.ToLower(kField.Name) == key {
-			return decodeDict(r, v.Field(i))
-		}
+	err, ok := run(v)
+	if err != nil {
+		return err
 	}
-	return nil
+	if ok {
+		return err
+	}
+	return decodeDict(r, reflect.New(reflect.StructOf(nil)).Elem())
 }
 
 func setDictNumber(r *bufio.Reader, key string, v reflect.Value) error {
+	run := func(v reflect.Value) (error, bool) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if kField.Tag.Get("bencode") == key {
+				return decodeNumber(r, v.Field(i)), true
+			}
+		}
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if strings.ToLower(kField.Name) == key {
+				return decodeNumber(r, v.Field(i)), true
+			}
+		}
+		return nil, false
+	}
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		kField := t.Field(i)
-		if kField.Tag.Get("bencode") == key {
-			return decodeNumber(r, v.Field(i))
+		if kField.Anonymous {
+			vField := v.Field(i)
+			err, ok := run(vField)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return err
+			}
 		}
 	}
-	for i := 0; i < t.NumField(); i++ {
-		kField := t.Field(i)
-		if strings.ToLower(kField.Name) == key {
-			return decodeNumber(r, v.Field(i))
-		}
+	err, ok := run(v)
+	if err != nil {
+		return err
 	}
-	return nil
+	if ok {
+		return err
+	}
+	return decodeNumber(r, reflect.New(reflect.TypeOf(0)).Elem())
 }
 
-func setDictString(r *bufio.Reader, key string, v reflect.Value, ch rune) error {
+func setDictString(r *bufio.Reader, key string, v reflect.Value, ch byte) error {
+	run := func(v reflect.Value) (error, bool) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if kField.Tag.Get("bencode") == key {
+				return decodeString(r, v.Field(i), ch), true
+			}
+		}
+		for i := 0; i < t.NumField(); i++ {
+			kField := t.Field(i)
+			if strings.ToLower(kField.Name) == key {
+				return decodeString(r, v.Field(i), ch), true
+			}
+		}
+		return nil, false
+	}
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		kField := t.Field(i)
-		if kField.Tag.Get("bencode") == key {
-			return decodeString(r, v.Field(i), ch)
+		if kField.Anonymous {
+			vField := v.Field(i)
+			err, ok := run(vField)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return err
+			}
 		}
 	}
-	for i := 0; i < t.NumField(); i++ {
-		kField := t.Field(i)
-		if strings.ToLower(kField.Name) == key {
-			return decodeString(r, v.Field(i), ch)
-		}
+	err, ok := run(v)
+	if err != nil {
+		return err
 	}
-	return nil
+	if ok {
+		return err
+	}
+	return decodeString(r, reflect.New(reflect.TypeOf("")).Elem(), ch)
 }

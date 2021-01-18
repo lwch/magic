@@ -4,24 +4,24 @@ import "github.com/lwch/bencode"
 
 // PingRequest ping request
 type PingRequest struct {
-	common
+	Hdr
 	query
 }
 
 // PingResponse ping response
 type PingResponse struct {
-	common
+	Hdr
 	Response struct {
 		ID [20]byte `bencode:"id"`
-	} `bencode:"a"`
+	} `bencode:"r"`
 }
 
 // PingReq build ping request packet
-func PingReq(target [20]byte) ([]byte, error) {
+func PingReq(id [20]byte) ([]byte, error) {
 	return bencode.Encode(PingRequest{
-		common: newCommon(request),
+		Hdr: newHdr(request),
 		query: newQuery("ping", map[string][20]byte{
-			"id": target,
+			"id": id,
 		}),
 	})
 }
