@@ -2,6 +2,7 @@ package dht
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/lwch/magic/code/data"
 )
 
+var next [20]byte
+
 // Find find_node
 func Find(id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 	c, err := net.DialUDP("udp", nil, addr)
@@ -17,9 +20,7 @@ func Find(id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		return nil, err
 	}
 	defer c.Close()
-	str := data.Rand(20)
-	var next [20]byte
-	copy(next[:], str)
+	rand.Read(next[:])
 	find, err := data.FindReq(id, next)
 	if err != nil {
 		return nil, err
