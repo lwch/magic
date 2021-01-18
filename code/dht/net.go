@@ -63,7 +63,6 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		}
 		logging.Info("find node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
 		list = append(list, node)
-		i += 26
 	}
 	return list, nil
 }

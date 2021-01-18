@@ -179,6 +179,5 @@ func (n *Node) handleDiscovery(buf []byte) {
 		if !n.parent.Push(node) {
 			node.Close()
 		}
-		i += 26
 	}
 }
