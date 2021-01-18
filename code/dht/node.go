@@ -2,12 +2,14 @@ package dht
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 // Node host
@@ -74,19 +76,19 @@ func (n *Node) write() {
 // Work recv packet
 func (n *Node) Work(id [20]byte) {
 	defer n.c.Close()
-	fmt.Printf("node %x work\n", n.id)
+	logging.Info("node %x work", n.id)
 	go n.keepAlive(id)
 	buf := make([]byte, 65535)
 	for {
 		len, err := n.c.Read(buf)
 		if err != nil {
-			fmt.Printf("err=%v\n", err)
+			logging.Error("read data of %s, err=%v", n.c.RemoteAddr().String(), err)
 			return
 		}
 		var hdr data.Hdr
 		err = bencode.Decode(buf[:len], &hdr)
 		if err != nil {
-			fmt.Printf("decode error: %v\n", err)
+			logging.Error("decode header of %s, err=%v\n%s", n.c.RemoteAddr().String(), err, hex.Dump(buf[:len]))
 			return
 		}
 		switch {
