@@ -117,9 +117,9 @@ func (n *Node) discovery(id [20]byte) {
 	var next [20]byte
 	for {
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(30 * time.Second):
 			rand.Read(next[:])
-			data, tx, err := data.FindReq(id, next)
+			data, tx, err := data.FindReq(next, id)
 			if err != nil {
 				continue
 			}

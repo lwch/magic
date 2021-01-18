@@ -22,7 +22,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 	defer c.Close()
 	var next [20]byte
 	rand.Read(next[:])
-	find, _, err := data.FindReq(id, next)
+	find, _, err := data.FindReq(next, id)
 	if err != nil {
 		return nil, err
 	}
