@@ -14,14 +14,14 @@ import (
 var next [20]byte
 
 // Find find_node
-func Find(id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
+func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 	c, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Close()
 	rand.Read(next[:])
-	find, err := data.FindReq(id, next)
+	find, _, err := data.FindReq(id, next)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func Find(id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 			continue
 		}
 		copy(next[:], findResp.Response.Nodes[i:i+20])
-		node, err := newNode(next, net.UDPAddr{
+		node, err := newNode(mgr, next, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		})

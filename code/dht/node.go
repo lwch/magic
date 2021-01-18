@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -12,17 +13,25 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+const maxFindCache = 100
+
 // Node host
 type Node struct {
 	id      [20]byte
 	c       *net.UDPConn
 	chWrite chan []byte
+	parent  *NodeMgr
 
+	// control
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// discovery
+	findIdx int
+	findTX  [maxFindCache]string
 }
 
-func newNode(id [20]byte, addr net.UDPAddr) (*Node, error) {
+func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) (*Node, error) {
 	c, err := net.DialUDP("udp", nil, &addr)
 	if err != nil {
 		return nil, err
@@ -75,9 +84,9 @@ func (n *Node) write() {
 
 // Work recv packet
 func (n *Node) Work(id [20]byte) {
-	defer n.c.Close()
+	defer n.Close()
 	logging.Info("node %x work", n.id)
-	go n.keepAlive(id)
+	go n.discovery(id)
 	buf := make([]byte, 65535)
 	for {
 		len, err := n.c.Read(buf)
@@ -95,17 +104,24 @@ func (n *Node) Work(id [20]byte) {
 		case hdr.IsRequest():
 			n.handleRequest(buf[:len])
 		case hdr.IsResponse():
-			n.handleResponse(buf[:len])
+			n.handleResponse(buf[:len], hdr)
 		}
 	}
 }
 
-func (n *Node) keepAlive(id [20]byte) {
-	req, _ := data.PingReq(id)
+func (n *Node) discovery(id [20]byte) {
+	var next [20]byte
 	for {
 		select {
 		case <-time.After(30 * time.Second):
-			n.chWrite <- req
+			rand.Read(next[:])
+			data, tx, err := data.FindReq(id, next)
+			if err != nil {
+				continue
+			}
+			n.findTX[n.findIdx%maxFindCache] = tx
+			n.findIdx++
+			n.chWrite <- data
 		case <-n.ctx.Done():
 			return
 		}
@@ -115,12 +131,17 @@ func (n *Node) keepAlive(id [20]byte) {
 func (n *Node) handleRequest(buf []byte) {
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
-		fmt.Println("ping")
+		fmt.Println("ping request")
 	case data.TypeFindNode:
-		fmt.Println("find_node")
+		fmt.Println("find_node request")
 	}
 }
 
-func (n *Node) handleResponse(buf []byte) {
-
+func (n *Node) handleResponse(buf []byte, hdr data.Hdr) {
+	for i := 0; i < maxFindCache; i++ {
+		if n.findTX[i] == hdr.Transaction {
+			fmt.Println("find_node response")
+			return
+		}
+	}
 }

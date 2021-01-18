@@ -18,12 +18,17 @@ type FindResponse struct {
 }
 
 // FindReq build find_node request packet
-func FindReq(id, target [20]byte) ([]byte, error) {
-	return bencode.Encode(FindRequest{
-		Hdr: newHdr(request),
+func FindReq(id, target [20]byte) ([]byte, string, error) {
+	hdr := newHdr(request)
+	data, err := bencode.Encode(FindRequest{
+		Hdr: hdr,
 		query: newQuery("find_node", map[string][20]byte{
 			"id":     id,
 			"target": target,
 		}),
 	})
+	if err != nil {
+		return nil, "", err
+	}
+	return data, hdr.Transaction, nil
 }

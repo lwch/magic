@@ -31,21 +31,18 @@ func init() {
 
 // http://www.bittorrent.org/beps/bep_0005.html
 func main() {
-	uniq := make(map[string]*dht.Node)
+	mgr := dht.NewNodeMgr(ID, 10000)
 	for {
 		for _, addr := range bootstrapAddrs {
-			nodes, err := dht.Find(ID, addr)
+			nodes, err := dht.Find(mgr, ID, addr)
 			if err != nil {
 				continue
 			}
 			for _, node := range nodes {
-				n := uniq[node.HexID()]
-				if n != nil {
+				if !mgr.Push(node) {
 					node.Close()
 					continue
 				}
-				uniq[node.HexID()] = node
-				go node.Work(ID)
 			}
 		}
 		time.Sleep(time.Second)
