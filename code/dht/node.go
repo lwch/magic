@@ -17,6 +17,11 @@ import (
 
 const maxFindCache = 100
 
+type findInfo struct {
+	t  int64
+	tx string
+}
+
 // Node host
 type Node struct {
 	id      [20]byte
@@ -30,7 +35,7 @@ type Node struct {
 
 	// discovery
 	findIdx int
-	findTX  [maxFindCache]string
+	findTX  [maxFindCache]findInfo
 }
 
 func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) (*Node, error) {
@@ -93,8 +98,18 @@ func (n *Node) Work(id [20]byte) {
 	go n.discovery(id)
 	buf := make([]byte, 65535)
 	for {
+		n.c.SetReadDeadline(time.Now().Add(10 * time.Second))
 		len, err := n.c.Read(buf)
 		if err != nil {
+			if strings.Contains(err.Error(), "timeout") {
+				continue
+			}
+			for i := 0; i < maxFindCache; i++ {
+				if n.findTX[i].tx != "" &&
+					time.Now().Unix()-n.findTX[i].t >= 10 {
+					return
+				}
+			}
 			logging.Error("read data of %s, err=%v", n.c.RemoteAddr().String(), err)
 			return
 		}
@@ -123,7 +138,10 @@ func (n *Node) discovery(id [20]byte) {
 			if err != nil {
 				continue
 			}
-			n.findTX[n.findIdx%maxFindCache] = tx
+			n.findTX[n.findIdx%maxFindCache] = findInfo{
+				t:  time.Now().Unix(),
+				tx: tx,
+			}
 			n.findIdx++
 			n.chWrite <- data
 		case <-n.ctx.Done():
@@ -147,7 +165,8 @@ func (n *Node) handleRequest(buf []byte) {
 
 func (n *Node) handleResponse(buf []byte, hdr data.Hdr) {
 	for i := 0; i < maxFindCache; i++ {
-		if n.findTX[i] == hdr.Transaction {
+		if n.findTX[i].tx == hdr.Transaction {
+			n.findTX[i].tx = ""
 			n.handleDiscovery(buf)
 			return
 		}
