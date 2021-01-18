@@ -182,6 +182,9 @@ func (n *Node) handleDiscovery(buf []byte) {
 	uniq := make(map[string]bool)
 	var next [20]byte
 	for i := 0; i < len(findResp.Response.Nodes); i += 26 {
+		if n.parent.isFull() {
+			return
+		}
 		var ip [4]byte
 		var port uint16
 		err = binary.Read(strings.NewReader(findResp.Response.Nodes[i+20:]), binary.BigEndian, &ip)

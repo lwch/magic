@@ -2,8 +2,6 @@ package dht
 
 import (
 	"sync"
-
-	"github.com/lwch/magic/code/logging"
 )
 
 // NodeMgr node manager
@@ -34,13 +32,17 @@ func (m *NodeMgr) Exists(id string) bool {
 	return m.nodes[id] != nil
 }
 
+// isFull
+func (m *NodeMgr) isFull() bool {
+	return len(m.nodes) >= m.maxSize
+}
+
 // Push push node
 func (m *NodeMgr) Push(node *Node) bool {
 	if m.Exists(node.HexID()) {
 		return false
 	}
 	if len(m.nodes) >= m.maxSize {
-		logging.Info("full nodes")
 		return false
 	}
 	go node.Work(m.id)
