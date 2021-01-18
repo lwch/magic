@@ -42,6 +42,7 @@ func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) (*Node, error) {
 		id:      id,
 		c:       c,
 		chWrite: make(chan []byte),
+		parent:  parent,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	node.ctx = ctx
