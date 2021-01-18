@@ -78,6 +78,7 @@ func (n *Node) Close() {
 	}
 	n.cancel()
 	n.parent.Pop(n.HexID())
+	logging.Info("%s closed", n.HexID())
 }
 
 func (n *Node) write() {
