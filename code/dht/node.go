@@ -148,6 +148,10 @@ func (n *Node) handleRequest(buf []byte) {
 		fmt.Println("ping request")
 	case data.TypeFindNode:
 		fmt.Println("find_node request")
+	case data.TypeGetPeers:
+		fmt.Println("get_peers request")
+	case data.TypeAnnouncePeer:
+		fmt.Println("announce_peer request")
 	}
 }
 

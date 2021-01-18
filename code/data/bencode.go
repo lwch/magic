@@ -16,6 +16,10 @@ const (
 	TypePing ReqType = "ping"
 	// TypeFindNode find_node
 	TypeFindNode ReqType = "find_node"
+	// TypeGetPeers get_peers
+	TypeGetPeers ReqType = "get_peers"
+	// TypeAnnouncePeer announce_peer
+	TypeAnnouncePeer ReqType = "announce_peer"
 )
 
 // Hdr bencode header
