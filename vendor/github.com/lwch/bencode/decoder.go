@@ -66,6 +66,7 @@ func decodeNumber(r *bufio.Reader, v reflect.Value) error {
 					return fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
 				}
 				v.SetInt(n)
+				return nil
 			case reflect.Uint,
 				reflect.Uint8, reflect.Uint16,
 				reflect.Uint32, reflect.Uint64:
@@ -74,6 +75,7 @@ func decodeNumber(r *bufio.Reader, v reflect.Value) error {
 					return fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
 				}
 				v.SetUint(n)
+				return nil
 			default:
 				return fmt.Errorf("can not set number value to variable of type %s", v.Kind().String())
 			}
