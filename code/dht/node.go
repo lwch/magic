@@ -102,14 +102,8 @@ func (n *Node) Work(id [20]byte) {
 		n.c.SetReadDeadline(time.Now().Add(10 * time.Second))
 		len, err := n.c.Read(buf)
 		if err != nil {
-			for i := 0; i < maxFindCache; i++ {
-				if n.findTX[i].tx != "" &&
-					time.Now().Unix()-n.findTX[i].t >= 10 {
-					return
-				}
-			}
 			if strings.Contains(err.Error(), "timeout") {
-				continue
+				return
 			}
 			logging.Error("read data of %s, err=%v", n.c.RemoteAddr().String(), err)
 			return
@@ -133,7 +127,7 @@ func (n *Node) discovery(id [20]byte) {
 	var next [20]byte
 	for {
 		select {
-		case <-time.After(10 * time.Second):
+		case <-time.After(time.Second):
 			rand.Read(next[:])
 			data, tx, err := data.FindReq(id, next)
 			if err != nil {
