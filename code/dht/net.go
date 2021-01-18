@@ -2,6 +2,7 @@ package dht
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -12,8 +13,6 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-var next [20]byte
-
 // Find find_node
 func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 	c, err := net.DialUDP("udp", nil, addr)
@@ -21,6 +20,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		return nil, err
 	}
 	defer c.Close()
+	var next [20]byte
 	rand.Read(next[:])
 	find, _, err := data.FindReq(id, next)
 	if err != nil {
@@ -42,6 +42,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		return nil, err
 	}
 	list := make([]*Node, 0, len(findResp.Response.Nodes)/26)
+	uniq := make(map[string]bool)
 	for i := 0; i < len(findResp.Response.Nodes); i += 26 {
 		var ip [4]byte
 		var port uint16
@@ -54,6 +55,9 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 			continue
 		}
 		copy(next[:], findResp.Response.Nodes[i:i+20])
+		if uniq[fmt.Sprintf("%x", next)] {
+			continue
+		}
 		node, err := newNode(mgr, next, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
@@ -63,6 +67,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		}
 		logging.Info("find node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
 		list = append(list, node)
+		uniq[fmt.Sprintf("%x", next)] = true
 	}
 	return list, nil
 }

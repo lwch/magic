@@ -156,6 +156,8 @@ func (n *Node) handleDiscovery(buf []byte) {
 	if err != nil {
 		return
 	}
+	uniq := make(map[string]bool)
+	var next [20]byte
 	for i := 0; i < len(findResp.Response.Nodes); i += 26 {
 		var ip [4]byte
 		var port uint16
@@ -168,6 +170,9 @@ func (n *Node) handleDiscovery(buf []byte) {
 			continue
 		}
 		copy(next[:], findResp.Response.Nodes[i:i+20])
+		if uniq[fmt.Sprintf("%x", next)] {
+			continue
+		}
 		node, err := newNode(n.parent, next, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
@@ -178,6 +183,8 @@ func (n *Node) handleDiscovery(buf []byte) {
 		logging.Info("discovery node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
 		if !n.parent.Push(node) {
 			node.Close()
+			continue
 		}
+		uniq[fmt.Sprintf("%x", next)] = true
 	}
 }
