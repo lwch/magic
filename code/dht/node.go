@@ -2,10 +2,12 @@ package dht
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -69,6 +71,7 @@ func (n *Node) Close() {
 		n.c.Close()
 	}
 	n.cancel()
+	n.parent.Pop(n.HexID())
 }
 
 func (n *Node) write() {
@@ -140,8 +143,41 @@ func (n *Node) handleRequest(buf []byte) {
 func (n *Node) handleResponse(buf []byte, hdr data.Hdr) {
 	for i := 0; i < maxFindCache; i++ {
 		if n.findTX[i] == hdr.Transaction {
-			fmt.Println("find_node response")
+			n.handleDiscovery(buf)
 			return
 		}
+	}
+}
+
+func (n *Node) handleDiscovery(buf []byte) {
+	var findResp data.FindResponse
+	err := bencode.Decode(buf, &findResp)
+	if err != nil {
+		return
+	}
+	for i := 0; i < len(findResp.Response.Nodes); i += 26 {
+		var ip [4]byte
+		var port uint16
+		err = binary.Read(strings.NewReader(findResp.Response.Nodes[i+20:]), binary.BigEndian, &ip)
+		if err != nil {
+			continue
+		}
+		err = binary.Read(strings.NewReader(findResp.Response.Nodes[i+24:]), binary.BigEndian, &port)
+		if err != nil {
+			continue
+		}
+		copy(next[:], findResp.Response.Nodes[i:i+20])
+		node, err := newNode(n.parent, next, net.UDPAddr{
+			IP:   net.IP(ip[:]),
+			Port: int(port),
+		})
+		if err != nil {
+			continue
+		}
+		logging.Info("discovery node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
+		if !n.parent.Push(node) {
+			node.Close()
+		}
+		i += 26
 	}
 }

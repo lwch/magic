@@ -9,6 +9,7 @@ import (
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 var next [20]byte
@@ -60,6 +61,7 @@ func Find(mgr *NodeMgr, id [20]byte, addr *net.UDPAddr) ([]*Node, error) {
 		if err != nil {
 			continue
 		}
+		logging.Info("find node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
 		list = append(list, node)
 		i += 26
 	}

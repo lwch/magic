@@ -9,18 +9,22 @@ import (
 // NodeMgr node manager
 type NodeMgr struct {
 	sync.RWMutex
-	id      [20]byte
-	nodes   map[string]*Node
-	maxSize int
+	id       [20]byte
+	nodes    map[string]*Node
+	maxSize  int
+	chRemove chan string
 }
 
 // NewNodeMgr new node manager
 func NewNodeMgr(myID [20]byte, max int) *NodeMgr {
-	return &NodeMgr{
-		id:      myID,
-		nodes:   make(map[string]*Node, max),
-		maxSize: max,
+	ret := &NodeMgr{
+		id:       myID,
+		nodes:    make(map[string]*Node, max),
+		maxSize:  max,
+		chRemove: make(chan string, 100),
 	}
+	go ret.clear()
+	return ret
 }
 
 // Exists node exists
@@ -51,9 +55,14 @@ func (m *NodeMgr) Pop(id string) {
 	if !m.Exists(id) {
 		return
 	}
-	m.Lock()
-	n := m.nodes[id]
-	n.Close()
-	delete(m.nodes, id)
-	m.Unlock()
+	m.chRemove <- id
+}
+
+func (m *NodeMgr) clear() {
+	for {
+		id := <-m.chRemove
+		m.Lock()
+		delete(m.nodes, id)
+		m.Unlock()
+	}
 }
