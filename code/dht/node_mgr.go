@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"net"
 	"sort"
 	"strings"
@@ -109,13 +110,25 @@ func (mgr *NodeMgr) handleData(addr net.Addr, buf []byte) {
 // Discovery discovery nodes
 func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 	mgr.bootstrap(addrs)
-	maxSize := mgr.maxSize / 8
 	for {
-		if len(mgr.nodes) >= maxSize {
+		if len(mgr.nodes) >= mgr.maxSize {
 			time.Sleep(time.Second)
 			continue
 		}
-		for _, node := range mgr.copyNodes() {
+		nodes := mgr.copyNodes()
+		rand.Shuffle(len(nodes), func(i, j int) {
+			nodes[i], nodes[j] = nodes[j], nodes[i]
+		})
+		left := mgr.maxSize - len(mgr.nodes)
+		if left < 0 {
+			time.Sleep(time.Second)
+			continue
+		}
+		left /= 8
+		if left < len(mgr.nodes) {
+			nodes = nodes[:left]
+		}
+		for _, node := range nodes {
 			node.sendDiscovery(mgr.listen, mgr.id)
 		}
 		time.Sleep(time.Second)
