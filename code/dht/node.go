@@ -10,7 +10,7 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-const discoveryCacheSize = 100
+const discoveryCacheSize = 10
 
 // Node host
 type Node struct {
