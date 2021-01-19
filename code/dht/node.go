@@ -68,6 +68,7 @@ func (node *Node) Close() {
 	if node.c != nil {
 		node.c.Close()
 	}
+	logging.Debug("node %s closed", node.HexID())
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
