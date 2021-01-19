@@ -124,7 +124,7 @@ func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 			time.Sleep(time.Second)
 			continue
 		}
-		left /= 8
+		left /= 8 // each discovery response 8 nodes
 		if left < len(mgr.nodes) {
 			nodes = nodes[:left]
 		}

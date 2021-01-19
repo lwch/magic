@@ -40,6 +40,7 @@ func Rand(n int) string {
 
 // RandID random id
 func RandID() [20]byte {
+	// TODO: http://www.bittorrent.org/beps/bep_0020.html
 	const charMap = "0123456789abcdef"
 	var id [20]byte
 	for i := 0; i < 20; {
