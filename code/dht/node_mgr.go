@@ -1,14 +1,23 @@
 package dht
 
 import (
+	"encoding/binary"
+	"fmt"
+	"net"
+	"strings"
 	"sync"
+	"time"
+
+	"github.com/lwch/bencode"
+	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 // NodeMgr node manager
 type NodeMgr struct {
 	sync.RWMutex
 	id       [20]byte
-	nodes    map[string]*Node
+	nodes    map[string]*Node // id => node
 	maxSize  int
 	chRemove chan string
 }
@@ -21,50 +30,118 @@ func NewNodeMgr(myID [20]byte, max int) *NodeMgr {
 		maxSize:  max,
 		chRemove: make(chan string, 100),
 	}
-	go ret.clear()
+	go ret.keepAlive()
 	return ret
 }
 
-// Exists node exists
-func (m *NodeMgr) Exists(id string) bool {
-	m.RLock()
-	defer m.RUnlock()
-	return m.nodes[id] != nil
-}
-
-// isFull
-func (m *NodeMgr) isFull() bool {
-	return len(m.nodes) >= m.maxSize
-}
-
-// Push push node
-func (m *NodeMgr) Push(node *Node) bool {
-	if m.Exists(node.HexID()) {
-		return false
+func (mgr *NodeMgr) copyNodes() []*Node {
+	nodes := make([]*Node, 0, len(mgr.nodes))
+	mgr.RLock()
+	defer mgr.RUnlock()
+	for _, node := range mgr.nodes {
+		nodes = append(nodes, node)
 	}
-	if len(m.nodes) >= m.maxSize {
-		return false
-	}
-	go node.Work(m.id)
-	m.Lock()
-	m.nodes[node.HexID()] = node
-	m.Unlock()
-	return true
+	return nodes
 }
 
-// Pop pop node
-func (m *NodeMgr) Pop(id string) {
-	if !m.Exists(id) {
+func (mgr *NodeMgr) keepAlive() {
+	for {
+		for _, node := range mgr.copyNodes() {
+			if time.Since(node.updated).Seconds() >= 10 {
+				mgr.remove(node.HexID())
+			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (mgr *NodeMgr) remove(id string) {
+	mgr.RLock()
+	node := mgr.nodes[id]
+	mgr.RUnlock()
+
+	if node == nil {
 		return
 	}
-	m.chRemove <- id
+	node.Close()
+
+	mgr.Lock()
+	delete(mgr.nodes, id)
+	mgr.Unlock()
 }
 
-func (m *NodeMgr) clear() {
+// Discovery discovery nodes
+func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
+	mgr.bootstrap(addrs)
 	for {
-		id := <-m.chRemove
-		m.Lock()
-		delete(m.nodes, id)
-		m.Unlock()
+		if len(mgr.nodes) >= mgr.maxSize {
+			time.Sleep(time.Second)
+			continue
+		}
+		for _, node := range mgr.copyNodes() {
+			node.sendDiscovery(mgr.id)
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (mgr *NodeMgr) bootstrap(addrs []*net.UDPAddr) {
+	mgr.Lock()
+	var id [20]byte
+	for _, addr := range addrs {
+		copy(id[:], data.Rand(20))
+		node, err := newNode(mgr, id, addr)
+		if err != nil {
+			continue
+		}
+		mgr.nodes[node.HexID()] = node
+	}
+	mgr.Unlock()
+}
+
+func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
+	var resp data.FindResponse
+	err := bencode.Decode(buf, &resp)
+	if err != nil {
+		logging.Error("decode discovery data failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	uniq := make(map[string]bool)
+	for i := 0; i < len(resp.Response.Nodes); i += 26 {
+		if len(mgr.nodes) >= mgr.maxSize {
+			logging.Info("full nodes")
+			return
+		}
+		var ip [4]byte
+		var port uint16
+		err = binary.Read(strings.NewReader(resp.Response.Nodes[i+20:]), binary.BigEndian, &ip)
+		if err != nil {
+			logging.Error("read ip failed of %s, err=%v", node.HexID(), err)
+			continue
+		}
+		err = binary.Read(strings.NewReader(resp.Response.Nodes[i+24:]), binary.BigEndian, &port)
+		if err != nil {
+			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
+			continue
+		}
+		var next [20]byte
+		copy(next[:], resp.Response.Nodes[i:i+20])
+		if uniq[fmt.Sprintf("%x", next)] {
+			continue
+		}
+		addr := net.UDPAddr{
+			IP:   net.IP(ip[:]),
+			Port: int(port),
+		}
+		nextNode, err := newNode(mgr, next, &addr)
+		if err != nil {
+			logging.Error("create node of %s failed, addr=%s, err=%v", node.HexID(), addr.String(), err)
+			continue
+		}
+		logging.Info("discovery node %s, addr=%s", node.HexID(), node.c.RemoteAddr())
+		mgr.Lock()
+		mgr.nodes[nextNode.HexID()] = nextNode
+		mgr.Unlock()
+		uniq[fmt.Sprintf("%x", next)] = true
 	}
 }

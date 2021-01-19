@@ -34,22 +34,7 @@ func init() {
 	}
 }
 
-// http://www.bittorrent.org/beps/bep_0005.html
 func main() {
 	mgr := dht.NewNodeMgr(ID, 300)
-	for {
-		for _, addr := range bootstrapAddrs {
-			nodes, err := dht.Find(mgr, ID, addr)
-			if err != nil {
-				continue
-			}
-			for _, node := range nodes {
-				if !mgr.Push(node) {
-					node.Close()
-					continue
-				}
-			}
-		}
-		time.Sleep(time.Second)
-	}
+	mgr.Discovery(bootstrapAddrs)
 }

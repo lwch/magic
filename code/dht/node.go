@@ -2,12 +2,9 @@ package dht
 
 import (
 	"context"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -15,197 +12,130 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-const maxFindCache = 100
-
-type findInfo struct {
-	t  int64
-	tx string
-}
+const discoveryCacheSize = 100
 
 // Node host
 type Node struct {
-	id      [20]byte
-	c       *net.UDPConn
-	chWrite chan []byte
 	parent  *NodeMgr
+	id      [20]byte
+	updated time.Time
+	c       *net.UDPConn
 
 	// control
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	// discovery
-	findIdx int
-	findTX  [maxFindCache]findInfo
+	disIdx   int
+	disCache [discoveryCacheSize]string // tx
 }
 
-func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) (*Node, error) {
-	c, err := net.DialUDP("udp", nil, &addr)
+func newNode(parent *NodeMgr, id [20]byte, addr *net.UDPAddr) (*Node, error) {
+	c, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
 		return nil, err
 	}
-	node := &Node{
-		id:      id,
-		c:       c,
-		chWrite: make(chan []byte),
-		parent:  parent,
-	}
 	ctx, cancel := context.WithCancel(context.Background())
-	node.ctx = ctx
-	node.cancel = cancel
-	go node.write()
+	node := &Node{
+		parent:  parent,
+		id:      id,
+		updated: time.Now(),
+		c:       c,
+		ctx:     ctx,
+		cancel:  cancel,
+	}
+	go node.recv()
 	return node, nil
 }
 
 // ID get node id
-func (n *Node) ID() [20]byte {
-	return n.id
+func (node *Node) ID() [20]byte {
+	return node.id
 }
 
 // HexID get node hex id
-func (n *Node) HexID() string {
-	return fmt.Sprintf("%x", n.id)
+func (node *Node) HexID() string {
+	return fmt.Sprintf("%x", node.id)
 }
 
-// C connection
-func (n *Node) C() *net.UDPConn {
-	return n.c
-}
-
-// Close close connection
-func (n *Node) Close() {
-	if n.c != nil {
-		n.c.Close()
-	}
-	n.cancel()
-	n.parent.Pop(n.HexID())
-	logging.Info("%s closed", n.HexID())
-}
-
-func (n *Node) write() {
-	for {
-		select {
-		case data := <-n.chWrite:
-			n.c.Write(data)
-		case <-n.ctx.Done():
-			return
-		}
+// Close close node
+func (node *Node) Close() {
+	node.cancel()
+	if node.c != nil {
+		node.c.Close()
 	}
 }
 
-// Work recv packet
-func (n *Node) Work(id [20]byte) {
-	defer n.Close()
-	logging.Info("node %x work", n.id)
-	go n.discovery(id)
-	buf := make([]byte, 65535)
-	for {
-		n.c.SetReadDeadline(time.Now().Add(10 * time.Second))
-		len, err := n.c.Read(buf)
-		if err != nil {
-			if strings.Contains(err.Error(), "timeout") {
-				return
-			}
-			logging.Error("read data of %s, err=%v", n.c.RemoteAddr().String(), err)
-			return
-		}
-		var hdr data.Hdr
-		err = bencode.Decode(buf[:len], &hdr)
-		if err != nil {
-			logging.Error("decode header of %s, err=%v\n%s", n.c.RemoteAddr().String(), err, hex.Dump(buf[:len]))
-			return
-		}
-		switch {
-		case hdr.IsRequest():
-			n.handleRequest(buf[:len])
-		case hdr.IsResponse():
-			n.handleResponse(buf[:len], hdr)
-		}
-	}
-}
-
-func (n *Node) discovery(id [20]byte) {
+// http://www.bittorrent.org/beps/bep_0005.html
+func (node *Node) sendDiscovery(id [20]byte) {
 	var next [20]byte
-	for {
-		select {
-		case <-time.After(time.Second):
-			rand.Read(next[:])
-			data, tx, err := data.FindReq(id, next)
-			if err != nil {
-				continue
-			}
-			n.findTX[n.findIdx%maxFindCache] = findInfo{
-				t:  time.Now().Unix(),
-				tx: tx,
-			}
-			n.findIdx++
-			n.chWrite <- data
-		case <-n.ctx.Done():
-			return
-		}
-	}
-}
-
-func (n *Node) handleRequest(buf []byte) {
-	switch data.ParseReqType(buf) {
-	case data.TypePing:
-		fmt.Println("ping request")
-	case data.TypeFindNode:
-		fmt.Println("find_node request")
-	case data.TypeGetPeers:
-		fmt.Println("get_peers request")
-	case data.TypeAnnouncePeer:
-		fmt.Println("announce_peer request")
-	}
-}
-
-func (n *Node) handleResponse(buf []byte, hdr data.Hdr) {
-	for i := 0; i < maxFindCache; i++ {
-		if n.findTX[i].tx == hdr.Transaction {
-			n.findTX[i].tx = ""
-			n.handleDiscovery(buf)
-			return
-		}
-	}
-}
-
-func (n *Node) handleDiscovery(buf []byte) {
-	var findResp data.FindResponse
-	err := bencode.Decode(buf, &findResp)
+	rand.Read(next[:])
+	data, tx, err := data.FindReq(id, next)
 	if err != nil {
+		logging.Error("build find_node packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	uniq := make(map[string]bool)
-	var next [20]byte
-	for i := 0; i < len(findResp.Response.Nodes); i += 26 {
-		if n.parent.isFull() {
+	_, err = node.c.Write(data)
+	if err != nil {
+		logging.Error("send find_node packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	node.disCache[node.disIdx] = tx
+	node.disIdx++
+}
+
+func (node *Node) recv() {
+	buf := make([]byte, 65535)
+	for {
+		select {
+		case <-node.ctx.Done():
+			return
+		default:
+		}
+
+		node.c.SetReadDeadline(time.Now().Add(time.Second))
+		n, err := node.c.Read(buf)
+		if err != nil {
+			continue
+		}
+		node.updated = time.Now()
+		node.handleData(buf[:n])
+	}
+}
+
+func (node *Node) handleData(buf []byte) {
+	var hdr data.Hdr
+	err := bencode.Decode(buf, &hdr)
+	if err != nil {
+		logging.Error("decode data failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	switch {
+	case hdr.IsRequest():
+		node.handleRequest(buf)
+	case hdr.IsResponse():
+		node.handleResponse(buf, hdr.Transaction)
+	}
+}
+
+func (node *Node) handleRequest(buf []byte) {
+	switch data.ParseReqType(buf) {
+	case data.TypePing:
+		fmt.Println("handle ping")
+	case data.TypeFindNode:
+		fmt.Println("handle find_node")
+	case data.TypeGetPeers:
+		fmt.Println("handle get_peers")
+	case data.TypeAnnouncePeer:
+		fmt.Println("handle announce_peer")
+	}
+}
+
+func (node *Node) handleResponse(buf []byte, tx string) {
+	for i := 0; i < discoveryCacheSize; i++ {
+		if node.disCache[i] == tx {
+			node.parent.onDiscovery(node, buf)
 			return
 		}
-		var ip [4]byte
-		var port uint16
-		err = binary.Read(strings.NewReader(findResp.Response.Nodes[i+20:]), binary.BigEndian, &ip)
-		if err != nil {
-			continue
-		}
-		err = binary.Read(strings.NewReader(findResp.Response.Nodes[i+24:]), binary.BigEndian, &port)
-		if err != nil {
-			continue
-		}
-		copy(next[:], findResp.Response.Nodes[i:i+20])
-		if uniq[fmt.Sprintf("%x", next)] {
-			continue
-		}
-		node, err := newNode(n.parent, next, net.UDPAddr{
-			IP:   net.IP(ip[:]),
-			Port: int(port),
-		})
-		if err != nil {
-			continue
-		}
-		logging.Info("discovery node %s, addr=%s", node.HexID(), node.C().RemoteAddr())
-		if !n.parent.Push(node) {
-			node.Close()
-			continue
-		}
-		uniq[fmt.Sprintf("%x", next)] = true
 	}
 }
