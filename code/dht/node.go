@@ -80,7 +80,7 @@ func (node *Node) sendDiscovery(id [20]byte) {
 		logging.Error("send find_node packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	node.disCache[node.disIdx] = tx
+	node.disCache[node.disIdx%discoveryCacheSize] = tx
 	node.disIdx++
 }
 
