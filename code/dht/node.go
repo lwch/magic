@@ -69,8 +69,8 @@ func (node *Node) Close() {
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
-func (node *Node) sendDiscovery() {
-	data, tx, err := data.FindReq(node.local, data.RandID())
+func (node *Node) sendDiscovery(id [20]byte) {
+	data, tx, err := data.FindReq(id, data.RandID())
 	if err != nil {
 		logging.Error("build find_node packet failed of %s, err=%v", node.HexID(), err)
 		return

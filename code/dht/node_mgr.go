@@ -16,6 +16,7 @@ import (
 // NodeMgr node manager
 type NodeMgr struct {
 	sync.RWMutex
+	id       [20]byte
 	nodes    map[string]*Node // id => node
 	maxSize  int
 	chRemove chan string
@@ -24,6 +25,7 @@ type NodeMgr struct {
 // NewNodeMgr new node manager
 func NewNodeMgr(max int) *NodeMgr {
 	ret := &NodeMgr{
+		id:       data.RandID(),
 		nodes:    make(map[string]*Node, max),
 		maxSize:  max,
 		chRemove: make(chan string, 100),
@@ -78,7 +80,7 @@ func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 			continue
 		}
 		for _, node := range mgr.copyNodes() {
-			node.sendDiscovery()
+			node.sendDiscovery(mgr.id)
 		}
 		time.Sleep(time.Second)
 	}
