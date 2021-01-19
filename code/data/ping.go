@@ -17,13 +17,18 @@ type PingResponse struct {
 }
 
 // PingReq build ping request packet
-func PingReq(id [20]byte) ([]byte, error) {
-	return bencode.Encode(PingRequest{
+func PingReq(id [20]byte) ([]byte, string, error) {
+	req := PingRequest{
 		Hdr: newHdr(request),
 		reqData: newReqData("ping", map[string][20]byte{
 			"id": id,
 		}),
-	})
+	}
+	data, err := bencode.Encode(req)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, req.Hdr.Transaction, nil
 }
 
 // PingRep build ping response packet

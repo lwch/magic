@@ -97,7 +97,9 @@ func (mgr *NodeMgr) handleData(addr net.Addr, buf []byte) {
 	}
 	data := make([]byte, len(buf))
 	copy(data, buf)
-	defer recover()
+	defer func() {
+		recover()
+	}()
 	select {
 	case node.chRead <- data:
 	default:
@@ -123,7 +125,7 @@ func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 func (mgr *NodeMgr) bootstrap(addrs []*net.UDPAddr) {
 	mgr.Lock()
 	for _, addr := range addrs {
-		node := newNode(mgr, data.RandID(), *addr)
+		node := newNode(mgr, mgr.id, data.RandID(), *addr)
 		mgr.nodes[node.AddrString()] = node
 	}
 	mgr.Unlock()
@@ -163,7 +165,7 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		}
-		nextNode := newNode(mgr, next, addr)
+		nextNode := newNode(mgr, mgr.id, next, addr)
 		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.AddrString())
 		mgr.Lock()
 		if node := mgr.nodes[nextNode.AddrString()]; node != nil {

@@ -30,7 +30,7 @@ type Node struct {
 	disCache [discoveryCacheSize]string // tx
 }
 
-func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) *Node {
+func newNode(parent *NodeMgr, localID, id [20]byte, addr net.UDPAddr) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	node := &Node{
 		parent:  parent,
@@ -42,6 +42,7 @@ func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) *Node {
 		ctx:    ctx,
 		cancel: cancel,
 	}
+	go node.keepAlive(localID)
 	go node.recv()
 	return node
 }
@@ -81,6 +82,26 @@ func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
 	}
 	node.disCache[node.disIdx%discoveryCacheSize] = tx
 	node.disIdx++
+}
+
+func (node *Node) keepAlive(id [20]byte) {
+	for {
+		select {
+		case <-time.After(5 * time.Second):
+			req, _, err := data.PingReq(id)
+			if err != nil {
+				logging.Error("build ping request of %s failed, err=%v", node.HexID(), err)
+				return
+			}
+			_, err = node.parent.listen.WriteTo(req, &node.addr)
+			if err != nil {
+				logging.Error("send ping request of %s failed, err=%v", node.HexID(), err)
+				continue
+			}
+		case <-node.ctx.Done():
+			return
+		}
+	}
 }
 
 func (node *Node) recv() {
