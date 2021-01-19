@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
@@ -64,7 +65,7 @@ func (node *Node) onData(buf []byte) {
 	var hdr data.Hdr
 	err := bencode.Decode(buf, &hdr)
 	if err != nil {
-		logging.Error("decode data failed of %s, err=%v", node.HexID(), err)
+		logging.Error("decode data failed of %s, err=%v\n%s", node.HexID(), err, hex.Dump(buf))
 		return
 	}
 	switch {
