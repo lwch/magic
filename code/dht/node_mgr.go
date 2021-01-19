@@ -140,6 +140,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		}
 		logging.Info("discovery node %s, addr=%s", node.HexID(), node.c.RemoteAddr())
 		mgr.Lock()
+		if n := mgr.nodes[nextNode.HexID()]; n != nil {
+			n.Close()
+		}
 		mgr.nodes[nextNode.HexID()] = nextNode
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
