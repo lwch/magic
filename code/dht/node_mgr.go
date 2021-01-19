@@ -258,5 +258,21 @@ func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
 }
 
 func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
-
+	var req data.AnnouncePeerRequest
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("parse announce_peer packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	logging.Info("announce_peer: %x", req.Data.Hash)
+	data, err := data.AnnouncePeer(mgr.id)
+	if err != nil {
+		logging.Error("build announce_peer response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	_, err = mgr.listen.WriteTo(data, &node.addr)
+	if err != nil {
+		logging.Error("send announce_peer response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
 }

@@ -12,7 +12,7 @@ type GetPeersRequest struct {
 	} `bencode:"a"`
 }
 
-// GetPeersNotFoundResponse find response
+// GetPeersNotFoundResponse get_peers response
 type GetPeersNotFoundResponse struct {
 	Hdr
 	Response struct {
