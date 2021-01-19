@@ -15,6 +15,8 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+const topSize = 8
+
 // NodeMgr node manager
 type NodeMgr struct {
 	sync.RWMutex
@@ -163,9 +165,7 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 func (mgr *NodeMgr) topK(id [20]byte, n int) []*Node {
 	nodes := mgr.copyNodes()
 	if len(nodes) < n {
-		ret := make([]*Node, n)
-		copy(ret, nodes)
-		return ret
+		return nil
 	}
 	sort.Slice(nodes, func(i, j int) bool {
 		for x := 0; x < 20; x++ {
@@ -214,7 +214,11 @@ func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
 		logging.Error("parse find_node packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	nodes := mgr.topK(req.Data.Target, 8)
+	nodes := mgr.topK(req.Data.Target, topSize)
+	if nodes == nil {
+		logging.Info("less nodes")
+		return
+	}
 	data, err := data.FindRep(mgr.id, string(formatNodes(nodes)))
 	if err != nil {
 		logging.Error("build find_node response packet failed of %s, err=%v", node.HexID(), err)
