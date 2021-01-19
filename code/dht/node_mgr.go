@@ -68,6 +68,9 @@ func (mgr *NodeMgr) keepAlive() {
 
 func (mgr *NodeMgr) remove(id string) {
 	mgr.Lock()
+	if node := mgr.nodes[id]; node != nil {
+		node.Close()
+	}
 	delete(mgr.nodes, id)
 	mgr.Unlock()
 }
