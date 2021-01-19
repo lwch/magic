@@ -1,9 +1,11 @@
 package dht
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -158,15 +160,36 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 	}
 }
 
-func (mgr *NodeMgr) topK(n int) []*Node {
-	// TODO
-	return nil
+func (mgr *NodeMgr) topK(id [20]byte, n int) []*Node {
+	nodes := mgr.copyNodes()
+	if len(nodes) < n {
+		ret := make([]*Node, n)
+		copy(ret, nodes)
+		return ret
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		for x := 0; x < 20; x++ {
+			a := id[x] ^ nodes[i].id[x]
+			b := id[x] ^ nodes[j].id[x]
+			if a == b {
+				continue
+			}
+			return a < b
+		}
+		return false
+	})
+	return nodes[:n]
 }
 
 func formatNodes(nodes []*Node) []byte {
 	ret := make([]byte, len(nodes)*26)
 	for i := 0; i < len(nodes)*26; i++ {
-
+		node := nodes[i/26]
+		copy(ret[i:], node.id[:])
+		var ipPort bytes.Buffer
+		binary.Write(&ipPort, binary.BigEndian, node.addr.IP)
+		binary.Write(&ipPort, binary.BigEndian, uint16(node.addr.Port))
+		copy(ret[i+20:], ipPort.Bytes())
 	}
 	return ret
 }
@@ -174,17 +197,34 @@ func formatNodes(nodes []*Node) []byte {
 func (mgr *NodeMgr) onPing(node *Node, buf []byte) {
 	data, err := data.PingRep(mgr.id)
 	if err != nil {
-		logging.Error("build pong packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("build ping response packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
 	_, err = mgr.listen.WriteTo(data, &node.addr)
 	if err != nil {
-		logging.Error("send pong packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("send ping response packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
 }
 
 func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
+	var req data.FindRequest
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("parse find_node packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	nodes := mgr.topK(req.Data.Target, 8)
+	data, err := data.FindRep(mgr.id, string(formatNodes(nodes)))
+	if err != nil {
+		logging.Error("build find_node response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	_, err = mgr.listen.WriteTo(data, &node.addr)
+	if err != nil {
+		logging.Error("send find_node response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
 }
 
 func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
