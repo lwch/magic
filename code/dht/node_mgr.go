@@ -58,7 +58,7 @@ func (mgr *NodeMgr) keepAlive() {
 	for {
 		for _, node := range mgr.copyNodes() {
 			if time.Since(node.updated).Seconds() >= 10 {
-				mgr.remove(node.HexID())
+				mgr.remove(node.AddrString())
 			}
 		}
 		time.Sleep(time.Second)
@@ -114,7 +114,7 @@ func (mgr *NodeMgr) bootstrap(addrs []*net.UDPAddr) {
 	mgr.Lock()
 	for _, addr := range addrs {
 		node := newNode(mgr, data.RandID(), *addr)
-		mgr.nodes[node.HexID()] = node
+		mgr.nodes[node.AddrString()] = node
 	}
 	mgr.Unlock()
 }
@@ -154,9 +154,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 			Port: int(port),
 		}
 		nextNode := newNode(mgr, next, addr)
-		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.addr.String())
+		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.AddrString())
 		mgr.Lock()
-		mgr.nodes[nextNode.HexID()] = nextNode
+		mgr.nodes[nextNode.AddrString()] = nextNode
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
 	}

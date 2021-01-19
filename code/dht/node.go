@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -39,6 +40,11 @@ func (node *Node) ID() [20]byte {
 
 // HexID get node hex id
 func (node *Node) HexID() string {
+	return fmt.Sprintf("%x", node.id)
+}
+
+// AddrString string of address
+func (node *Node) AddrString() string {
 	return node.addr.String()
 }
 
@@ -46,12 +52,12 @@ func (node *Node) HexID() string {
 func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
 	data, tx, err := data.FindReq(id, data.RandID())
 	if err != nil {
-		logging.Error("build find_node packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("build find_node packet failed of %s, err=%v", node.AddrString(), err)
 		return
 	}
 	_, err = c.WriteTo(data, &node.addr)
 	if err != nil {
-		logging.Error("send find_node packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("send find_node packet failed of %s, err=%v", node.AddrString(), err)
 		return
 	}
 	node.disCache[node.disIdx%discoveryCacheSize] = tx
