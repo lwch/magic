@@ -109,7 +109,7 @@ func (mgr *NodeMgr) handleData(addr net.Addr, buf []byte) {
 // Discovery discovery nodes
 func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 	mgr.bootstrap(addrs)
-	maxSize := mgr.maxSize * 8 / 10
+	maxSize := mgr.maxSize / 8
 	for {
 		if len(mgr.nodes) >= maxSize {
 			time.Sleep(time.Second)
