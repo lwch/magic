@@ -73,8 +73,9 @@ func (mgr *NodeMgr) remove(id string) {
 // Discovery discovery nodes
 func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 	mgr.bootstrap(addrs)
+	maxSize := mgr.maxSize * 8 / 10
 	for {
-		if len(mgr.nodes) >= mgr.maxSize {
+		if len(mgr.nodes) >= maxSize {
 			time.Sleep(time.Second)
 			continue
 		}
