@@ -139,7 +139,7 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 			logging.Error("create node of %s failed, addr=%s, err=%v", node.HexID(), addr.String(), err)
 			continue
 		}
-		logging.Info("discovery node %s, addr=%s", node.HexID(), node.c.RemoteAddr())
+		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.c.RemoteAddr())
 		mgr.Lock()
 		if n := mgr.nodes[nextNode.HexID()]; n != nil {
 			n.Close()
