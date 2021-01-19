@@ -37,3 +37,23 @@ func Rand(n int) string {
 	}
 	return prefix + buf.String()
 }
+
+// RandID random id
+func RandID() [20]byte {
+	const charMap = "0123456789abcdef"
+	var id [20]byte
+	for i := 0; i < 20; {
+		n, err := rand.Read(id[i:])
+		if err != nil {
+			for j := i; j < 20; j++ {
+				id[j] = 'f'
+			}
+			return id
+		}
+		for j := i; j < i+n; j++ {
+			id[j] = charMap[int(id[j])%len(charMap)]
+		}
+		i += n
+	}
+	return id
+}

@@ -86,10 +86,8 @@ func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 
 func (mgr *NodeMgr) bootstrap(addrs []*net.UDPAddr) {
 	mgr.Lock()
-	var id [20]byte
 	for _, addr := range addrs {
-		copy(id[:], data.Rand(20))
-		node, err := newNode(mgr, id, addr)
+		node, err := newNode(mgr, data.RandID(), addr)
 		if err != nil {
 			continue
 		}

@@ -3,7 +3,6 @@ package dht
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 
@@ -37,11 +36,9 @@ func newNode(parent *NodeMgr, id [20]byte, addr *net.UDPAddr) (*Node, error) {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	var local [20]byte
-	rand.Read(local[:])
 	node := &Node{
 		parent:  parent,
-		local:   local,
+		local:   data.RandID(),
 		id:      id,
 		updated: time.Now(),
 		c:       c,
@@ -73,9 +70,7 @@ func (node *Node) Close() {
 
 // http://www.bittorrent.org/beps/bep_0005.html
 func (node *Node) sendDiscovery() {
-	var next [20]byte
-	rand.Read(next[:])
-	data, tx, err := data.FindReq(node.local, next)
+	data, tx, err := data.FindReq(node.local, data.RandID())
 	if err != nil {
 		logging.Error("build find_node packet failed of %s, err=%v", node.HexID(), err)
 		return
