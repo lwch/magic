@@ -61,6 +61,7 @@ func (mgr *NodeMgr) keepAlive() {
 				mgr.remove(node.AddrString())
 			}
 		}
+		logging.Debug("%d nodes alive", len(mgr.nodes))
 		time.Sleep(time.Second)
 	}
 }
