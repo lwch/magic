@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -18,6 +19,11 @@ type Node struct {
 	id      [20]byte    // remote id
 	addr    net.UDPAddr // remote addr
 	updated time.Time
+	chRead  chan []byte
+
+	// context
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// discovery
 	disIdx   int
@@ -25,12 +31,19 @@ type Node struct {
 }
 
 func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) *Node {
-	return &Node{
+	ctx, cancel := context.WithCancel(context.Background())
+	node := &Node{
 		parent:  parent,
 		id:      id,
 		addr:    addr,
 		updated: time.Now(),
+		chRead:  make(chan []byte, 100),
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
+	go node.recv()
+	return node
 }
 
 // ID get node id
@@ -48,6 +61,12 @@ func (node *Node) AddrString() string {
 	return node.addr.String()
 }
 
+// Close close node
+func (node *Node) Close() {
+	node.cancel()
+	close(node.chRead)
+}
+
 // http://www.bittorrent.org/beps/bep_0005.html
 func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
 	data, tx, err := data.FindReq(id, data.RandID())
@@ -62,6 +81,17 @@ func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
 	}
 	node.disCache[node.disIdx%discoveryCacheSize] = tx
 	node.disIdx++
+}
+
+func (node *Node) recv() {
+	for {
+		select {
+		case data := <-node.chRead:
+			node.onData(data)
+		case <-node.ctx.Done():
+			return
+		}
+	}
 }
 
 func (node *Node) onData(buf []byte) {

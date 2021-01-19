@@ -92,7 +92,13 @@ func (mgr *NodeMgr) handleData(addr net.Addr, buf []byte) {
 		// logging.Error("node of %s not found", addr.String())
 		return
 	}
-	node.onData(buf)
+	data := make([]byte, len(buf))
+	copy(data, buf)
+	defer recover()
+	select {
+	case node.chRead <- data:
+	default:
+	}
 }
 
 // Discovery discovery nodes
@@ -157,6 +163,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		nextNode := newNode(mgr, next, addr)
 		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.AddrString())
 		mgr.Lock()
+		if node := mgr.nodes[nextNode.AddrString()]; node != nil {
+			node.Close()
+		}
 		mgr.nodes[nextNode.AddrString()] = nextNode
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
