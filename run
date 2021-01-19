@@ -1,3 +1,4 @@
 #!/bin/sh
 ./build
-./bin/magic
+killall magic
+nohup ./bin/magic >log 2>&1 &
