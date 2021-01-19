@@ -7,7 +7,7 @@ import (
 // FindRequest find_node request
 type FindRequest struct {
 	Hdr
-	query
+	reqData
 }
 
 // FindResponse find response
@@ -24,7 +24,7 @@ func FindReq(id, target [20]byte) ([]byte, string, error) {
 	hdr := newHdr(request)
 	data, err := bencode.Encode(FindRequest{
 		Hdr: hdr,
-		query: newQuery("find_node", map[string][20]byte{
+		reqData: newReqData("find_node", map[string][20]byte{
 			"id":     id,
 			"target": target,
 		}),

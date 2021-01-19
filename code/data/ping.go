@@ -5,7 +5,7 @@ import "github.com/lwch/bencode"
 // PingRequest ping request
 type PingRequest struct {
 	Hdr
-	query
+	reqData
 }
 
 // PingResponse ping response
@@ -20,8 +20,15 @@ type PingResponse struct {
 func PingReq(id [20]byte) ([]byte, error) {
 	return bencode.Encode(PingRequest{
 		Hdr: newHdr(request),
-		query: newQuery("ping", map[string][20]byte{
+		reqData: newReqData("ping", map[string][20]byte{
 			"id": id,
 		}),
+	})
+}
+
+// PingRep build ping response packet
+func PingRep(id [20]byte) ([]byte, error) {
+	return bencode.Encode(PingResponse{
+		Hdr: newHdr(response),
 	})
 }

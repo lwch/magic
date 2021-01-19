@@ -157,3 +157,40 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		uniq[fmt.Sprintf("%x", next)] = true
 	}
 }
+
+func (mgr *NodeMgr) topK(n int) []*Node {
+	// TODO
+	return nil
+}
+
+func formatNodes(nodes []*Node) []byte {
+	ret := make([]byte, len(nodes)*26)
+	for i := 0; i < len(nodes)*26; i++ {
+
+	}
+	return ret
+}
+
+func (mgr *NodeMgr) onPing(node *Node, buf []byte) {
+	data, err := data.PingRep(mgr.id)
+	if err != nil {
+		logging.Error("build pong packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	_, err = mgr.listen.WriteTo(data, &node.addr)
+	if err != nil {
+		logging.Error("send pong packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+}
+
+func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
+}
+
+func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
+
+}
+
+func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
+
+}

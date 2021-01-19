@@ -38,9 +38,13 @@ func (h Hdr) IsResponse() bool {
 	return h.Type == response
 }
 
-type query struct {
+type reqData struct {
 	Action string      `bencode:"q"`
 	Data   interface{} `bencode:"a"`
+}
+
+type repData struct {
+	Data interface{} `bencode:"r"`
 }
 
 func newHdr(t string) Hdr {
@@ -50,11 +54,15 @@ func newHdr(t string) Hdr {
 	}
 }
 
-func newQuery(action string, data interface{}) query {
-	return query{
+func newReqData(action string, data interface{}) reqData {
+	return reqData{
 		Action: action,
 		Data:   data,
 	}
+}
+
+func newRepData(data interface{}) repData {
+	return repData{Data: data}
 }
 
 // ParseReqType parse request type

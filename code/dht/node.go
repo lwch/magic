@@ -1,7 +1,6 @@
 package dht
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -79,13 +78,13 @@ func (node *Node) onData(buf []byte) {
 func (node *Node) handleRequest(buf []byte) {
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
-		fmt.Println("handle ping")
+		node.parent.onPing(node, buf)
 	case data.TypeFindNode:
-		fmt.Println("handle find_node")
+		node.parent.onFindNode(node, buf)
 	case data.TypeGetPeers:
-		fmt.Println("handle get_peers")
+		node.parent.onGetPeers(node, buf)
 	case data.TypeAnnouncePeer:
-		fmt.Println("handle announce_peer")
+		node.parent.onAnnouncePeer(node, buf)
 	}
 }
 
