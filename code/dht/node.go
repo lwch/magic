@@ -37,7 +37,7 @@ func newNode(parent *NodeMgr, id [20]byte, addr net.UDPAddr) *Node {
 		id:      id,
 		addr:    addr,
 		updated: time.Now(),
-		chRead:  make(chan []byte, 10),
+		chRead:  make(chan []byte, 2),
 
 		ctx:    ctx,
 		cancel: cancel,
