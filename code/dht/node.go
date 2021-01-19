@@ -17,7 +17,8 @@ const discoveryCacheSize = 100
 // Node host
 type Node struct {
 	parent  *NodeMgr
-	id      [20]byte
+	local   [20]byte // random local id
+	id      [20]byte // remote id
 	updated time.Time
 	c       *net.UDPConn
 
@@ -36,8 +37,11 @@ func newNode(parent *NodeMgr, id [20]byte, addr *net.UDPAddr) (*Node, error) {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	var local [20]byte
+	rand.Read(local[:])
 	node := &Node{
 		parent:  parent,
+		local:   local,
 		id:      id,
 		updated: time.Now(),
 		c:       c,
@@ -67,10 +71,10 @@ func (node *Node) Close() {
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
-func (node *Node) sendDiscovery(id [20]byte) {
+func (node *Node) sendDiscovery() {
 	var next [20]byte
 	rand.Read(next[:])
-	data, tx, err := data.FindReq(id, next)
+	data, tx, err := data.FindReq(node.local, next)
 	if err != nil {
 		logging.Error("build find_node packet failed of %s, err=%v", node.HexID(), err)
 		return
