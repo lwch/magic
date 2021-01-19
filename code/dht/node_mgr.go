@@ -183,13 +183,13 @@ func (mgr *NodeMgr) topK(id [20]byte, n int) []*Node {
 
 func formatNodes(nodes []*Node) []byte {
 	ret := make([]byte, len(nodes)*26)
-	for i := 0; i < len(nodes)*26; i++ {
-		node := nodes[i/26]
-		copy(ret[i:], node.id[:])
+	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
+		copy(ret[i*26:], node.id[:])
 		var ipPort bytes.Buffer
 		binary.Write(&ipPort, binary.BigEndian, node.addr.IP)
 		binary.Write(&ipPort, binary.BigEndian, uint16(node.addr.Port))
-		copy(ret[i+20:], ipPort.Bytes())
+		copy(ret[i*26+20:], ipPort.Bytes())
 	}
 	return ret
 }
