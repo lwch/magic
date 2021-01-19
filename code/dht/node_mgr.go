@@ -233,7 +233,28 @@ func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
 }
 
 func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
-
+	var req data.GetPeersRequest
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("parse get_peers packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	logging.Info("get_peers: %x", req.Data.Hash)
+	nodes := mgr.topK(req.Data.Hash, topSize)
+	if nodes == nil {
+		logging.Info("less nodes")
+		return
+	}
+	data, err := data.GetPeersNotFound(mgr.id, data.Rand(32), string(formatNodes(nodes)))
+	if err != nil {
+		logging.Error("build get_peers response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	_, err = mgr.listen.WriteTo(data, &node.addr)
+	if err != nil {
+		logging.Error("send get_peers response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
 }
 
 func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
