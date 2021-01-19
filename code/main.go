@@ -35,6 +35,6 @@ func init() {
 }
 
 func main() {
-	mgr := dht.NewNodeMgr(ID, 300)
+	mgr := dht.NewNodeMgr(ID, 3000)
 	mgr.Discovery(bootstrapAddrs)
 }
