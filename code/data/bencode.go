@@ -49,7 +49,7 @@ type repData struct {
 
 func newHdr(t string) Hdr {
 	return Hdr{
-		Transaction: Rand(32),
+		Transaction: Rand(16),
 		Type:        t,
 	}
 }
