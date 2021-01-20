@@ -169,6 +169,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
 			continue
 		}
+		if port == 0 {
+			continue
+		}
 		var next [20]byte
 		copy(next[:], resp.Response.Nodes[i:i+20])
 		if uniq[fmt.Sprintf("%x", next)] {
