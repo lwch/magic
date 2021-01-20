@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const ver = "1000"
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -38,12 +40,16 @@ func Rand(n int) string {
 	return prefix + buf.String()
 }
 
-// RandID random id
+// RandID random id: http://www.bittorrent.org/beps/bep_0020.html
 func RandID() [20]byte {
-	// TODO: http://www.bittorrent.org/beps/bep_0020.html
 	const charMap = "0123456789abcdef"
 	var id [20]byte
-	for i := 0; i < 20; {
+	id[0] = '-'
+	id[1] = 'M'
+	id[2] = 'G'
+	copy(id[3:], ver)
+	id[7] = '-'
+	for i := 8; i < 20; {
 		n, err := rand.Read(id[i:])
 		if err != nil {
 			for j := i; j < 20; j++ {
