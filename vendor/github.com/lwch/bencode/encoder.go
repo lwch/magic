@@ -54,29 +54,52 @@ func encode(buf io.Writer, v reflect.Value) error {
 		}
 		_, err = buf.Write([]byte(v.String()))
 		return err
-	case reflect.Slice, reflect.Array: // TODO: byte slice
-		if v.Type().ConvertibleTo(bytesType) {
-			data := v.Bytes()
-			_, err := buf.Write([]byte(fmt.Sprintf("%d:", len(data))))
+	case reflect.Slice:
+		_, err := buf.Write([]byte("l"))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < v.Len(); i++ {
+			err = encode(buf, v.Index(i))
 			if err != nil {
 				return err
+			}
+		}
+		_, err = buf.Write([]byte("e"))
+		return err
+	case reflect.Array:
+		// if v.Type().ConvertibleTo(bytesType) {
+		// 	data := v.Bytes()
+		// 	_, err := buf.Write([]byte(fmt.Sprintf("%d:", len(data))))
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	_, err = buf.Write(data)
+		// 	return err
+		// }
+		if v.Index(0).Kind() == reflect.Uint8 {
+			data := make([]byte, v.Len())
+			for i := 0; i < v.Len(); i++ {
+				data[i] = byte(v.Index(i).Uint())
+			}
+			_, err := buf.Write([]byte(fmt.Sprintf("%d:", v.Len())))
+			if err != nil {
+				return nil
 			}
 			_, err = buf.Write(data)
 			return err
 		}
-		data := make([]byte, v.Len())
-		for i := 0; i < v.Len(); i++ {
-			n := v.Index(i)
-			if n.Kind() != reflect.Uint8 {
-				return fmt.Errorf("not supported %s value", v.Kind())
-			}
-			data[i] = byte(n.Uint())
-		}
-		_, err := buf.Write([]byte(fmt.Sprintf("%d:", v.Len())))
+		_, err := buf.Write([]byte("l"))
 		if err != nil {
-			return nil
+			return err
 		}
-		_, err = buf.Write(data)
+		for i := 0; i < v.Len(); i++ {
+			err = encode(buf, v.Index(i))
+			if err != nil {
+				return err
+			}
+		}
+		_, err = buf.Write([]byte("e"))
 		return err
 	case reflect.Interface:
 		return encode(buf, v.Elem())

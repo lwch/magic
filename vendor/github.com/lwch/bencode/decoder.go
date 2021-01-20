@@ -41,20 +41,38 @@ func decode(r *bufio.Reader, v reflect.Value) error {
 	}
 	switch ch {
 	case 'i':
-		return decodeNumber(r, v.Elem())
+		n, err := decodeNumber(r, v.Elem())
+		if err != nil {
+			return err
+		}
+		if n.isUnsigned {
+			v.Elem().SetUint(n.unsigned)
+		} else {
+			v.Elem().SetInt(n.signed)
+		}
+		return nil
 	case 'd':
 		return decodeDict(r, v.Elem())
+	case 'l':
+		return decodeList(r, v.Elem())
 	default:
 		return decodeString(r, v.Elem(), ch)
 	}
 }
 
-func decodeNumber(r *bufio.Reader, v reflect.Value) error {
+type number struct {
+	isUnsigned bool
+	signed     int64
+	unsigned   uint64
+}
+
+func decodeNumber(r *bufio.Reader, v reflect.Value) (number, error) {
+	var ret number
 	var str []byte
 	for {
 		ch, err := r.ReadByte()
 		if err != nil {
-			return fmt.Errorf("decode number: %v", err)
+			return ret, fmt.Errorf("decode number: %v", err)
 		}
 		if ch == 'e' {
 			switch v.Kind() {
@@ -63,21 +81,25 @@ func decodeNumber(r *bufio.Reader, v reflect.Value) error {
 				reflect.Int32, reflect.Int64:
 				n, err := strconv.ParseInt(string(str), 10, v.Type().Bits())
 				if err != nil {
-					return fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
+					return ret, fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
 				}
-				v.SetInt(n)
-				return nil
+				return number{
+					isUnsigned: false,
+					signed:     n,
+				}, nil
 			case reflect.Uint,
 				reflect.Uint8, reflect.Uint16,
 				reflect.Uint32, reflect.Uint64:
 				n, err := strconv.ParseUint(string(str), 10, v.Type().Bits())
 				if err != nil {
-					return fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
+					return ret, fmt.Errorf("can not parse %s to %s value", string(str), v.Kind().String())
 				}
-				v.SetUint(n)
-				return nil
+				return number{
+					isUnsigned: true,
+					unsigned:   n,
+				}, nil
 			default:
-				return fmt.Errorf("can not set number value to variable of type %s", v.Kind().String())
+				return ret, fmt.Errorf("can not set number value to variable of type %s", v.Kind().String())
 			}
 		}
 		str = append(str, ch)
@@ -85,6 +107,9 @@ func decodeNumber(r *bufio.Reader, v reflect.Value) error {
 }
 
 func decodeDict(r *bufio.Reader, v reflect.Value) error {
+	if v.Kind() == reflect.Map && v.IsNil() {
+		v.Set(reflect.MakeMap(v.Type()))
+	}
 	key := reflect.New(reflect.TypeOf(""))
 	for {
 		ch, err := r.ReadByte()
@@ -104,6 +129,8 @@ func decodeDict(r *bufio.Reader, v reflect.Value) error {
 			err = setDictNumber(r, key.Elem().String(), v)
 		case 'd':
 			err = setDictDict(r, key.Elem().String(), v)
+		// case 'l':
+		// 	err = setDictList(r, key.Elem().String(), v)
 		default:
 			err = setDictString(r, key.Elem().String(), v, ch)
 		}
@@ -111,6 +138,106 @@ func decodeDict(r *bufio.Reader, v reflect.Value) error {
 			return err
 		}
 	}
+}
+
+func decodeList2Slice(r *bufio.Reader, v reflect.Value) error {
+	slice := reflect.MakeSlice(v.Type(), 0, 0)
+	for {
+		ch, err := r.ReadByte()
+		if err != nil {
+			return fmt.Errorf("decode slice: %v", err)
+		}
+		if ch == 'e' {
+			break
+		}
+		v := reflect.New(v.Type().Elem())
+		switch ch {
+		case 'i':
+			n, err := decodeNumber(r, v)
+			if err != nil {
+				return err
+			}
+			if n.isUnsigned {
+				v.Elem().SetUint(n.unsigned)
+			} else {
+				v.Elem().SetInt(n.signed)
+			}
+		case 'd':
+			err = decodeDict(r, v.Elem())
+			if err != nil {
+				return err
+			}
+		case 'l':
+			err = decodeList(r, v.Elem())
+			if err != nil {
+				return err
+			}
+		default:
+			err = decodeString(r, v.Elem(), ch)
+			if err != nil {
+				return err
+			}
+		}
+		slice = reflect.Append(slice, v.Elem())
+	}
+	v.Set(slice)
+	return nil
+}
+
+func decodeList2Array(r *bufio.Reader, v reflect.Value) error {
+	i := 0
+	for {
+		ch, err := r.ReadByte()
+		if err != nil {
+			return fmt.Errorf("decode slice: %v", err)
+		}
+		if ch == 'e' {
+			break
+		}
+		target := v.Index(i)
+		switch ch {
+		case 'i':
+			n, err := decodeNumber(r, target)
+			if err != nil {
+				return err
+			}
+			if n.isUnsigned {
+				target.SetUint(n.unsigned)
+			} else {
+				target.SetInt(n.signed)
+			}
+		case 'd':
+			err = decodeDict(r, target)
+			if err != nil {
+				return err
+			}
+		case 'l':
+			err = decodeList(r, target)
+			if err != nil {
+				return err
+			}
+		default:
+			err = decodeString(r, target, ch)
+			if err != nil {
+				return err
+			}
+		}
+		i++
+		if i >= v.Len() {
+			break
+		}
+	}
+	return nil
+}
+
+func decodeList(r *bufio.Reader, v reflect.Value) error {
+	if v.Kind() == reflect.Slice {
+		return decodeList2Slice(r, v)
+	}
+	if v.Kind() == reflect.Array {
+		return decodeList2Array(r, v)
+	}
+	return fmt.Errorf("can not set list value to variable of type %s", v.Kind().String())
 }
 
 func decodeString(r *bufio.Reader, v reflect.Value, ch byte) error {
@@ -202,84 +329,126 @@ func setDictDict(r *bufio.Reader, key string, v reflect.Value) error {
 	return decodeDict(r, reflect.New(reflect.StructOf(nil)).Elem())
 }
 
-func setDictNumber(r *bufio.Reader, key string, v reflect.Value) error {
-	run := func(v reflect.Value) (error, bool) {
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			kField := t.Field(i)
-			if kField.Tag.Get("bencode") == key {
-				return decodeNumber(r, v.Field(i)), true
+func numberByType(n number, t reflect.Type) reflect.Value {
+	switch t.Kind() {
+	case reflect.Int:
+		return reflect.ValueOf(int(n.signed))
+	case reflect.Int8:
+		return reflect.ValueOf(int8(n.signed))
+	case reflect.Int16:
+		return reflect.ValueOf(int16(n.signed))
+	case reflect.Int32:
+		return reflect.ValueOf(int32(n.signed))
+	case reflect.Int64:
+		return reflect.ValueOf(int64(n.signed))
+	case reflect.Uint:
+		return reflect.ValueOf(uint(n.unsigned))
+	case reflect.Uint8:
+		return reflect.ValueOf(uint8(n.unsigned))
+	case reflect.Uint16:
+		return reflect.ValueOf(uint16(n.unsigned))
+	case reflect.Uint32:
+		return reflect.ValueOf(uint32(n.unsigned))
+	case reflect.Uint64:
+		return reflect.ValueOf(uint64(n.unsigned))
+	default:
+		return reflect.ValueOf(nil)
+	}
+}
+
+func newNumberValue(t reflect.Type) reflect.Value {
+	switch t.Kind() {
+	case reflect.Int:
+		return reflect.ValueOf(int(0))
+	case reflect.Int8:
+		return reflect.ValueOf(int8(0))
+	case reflect.Int16:
+		return reflect.ValueOf(int16(0))
+	case reflect.Int32:
+		return reflect.ValueOf(int32(0))
+	case reflect.Int64:
+		return reflect.ValueOf(int64(0))
+	case reflect.Uint:
+		return reflect.ValueOf(uint(0))
+	case reflect.Uint8:
+		return reflect.ValueOf(uint8(0))
+	case reflect.Uint16:
+		return reflect.ValueOf(uint16(0))
+	case reflect.Uint32:
+		return reflect.ValueOf(uint32(0))
+	case reflect.Uint64:
+		return reflect.ValueOf(uint64(0))
+	default:
+		return reflect.ValueOf(nil)
+	}
+}
+
+func getDictTarget(v reflect.Value, key string, notfound reflect.Type) reflect.Value {
+	if v.Kind() == reflect.Map {
+		kvalue := reflect.ValueOf(key)
+		vn := v.MapIndex(kvalue)
+		if !vn.IsValid() {
+			if v.Type().Elem().Kind() == reflect.Interface {
+				vn = reflect.New(notfound).Elem()
+			} else {
+				vn = reflect.New(v.Type().Elem()).Elem()
 			}
 		}
-		for i := 0; i < t.NumField(); i++ {
-			kField := t.Field(i)
-			if strings.ToLower(kField.Name) == key {
-				return decodeNumber(r, v.Field(i)), true
-			}
-		}
-		return nil, false
+		return vn
 	}
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		kField := t.Field(i)
-		if kField.Anonymous {
-			vField := v.Field(i)
-			err, ok := run(vField)
-			if err != nil {
-				return err
-			}
-			if ok {
-				return err
-			}
+		if kField.Tag.Get("bencode") == key {
+			return v.Field(i)
 		}
 	}
-	err, ok := run(v)
+	for i := 0; i < t.NumField(); i++ {
+		kField := t.Field(i)
+		if strings.ToLower(kField.Name) == key {
+			return v.Field(i)
+		}
+		if kField.Anonymous {
+			vField := v.Field(i)
+			return getDictTarget(vField, key, notfound)
+		}
+	}
+	return reflect.New(notfound).Elem()
+}
+
+func setDictNumber(r *bufio.Reader, key string, v reflect.Value) error {
+	if v.Kind() == reflect.Map {
+		target := getDictTarget(v, key, reflect.TypeOf(0))
+		n, err := decodeNumber(r, target)
+		if err != nil {
+			return err
+		}
+		v.SetMapIndex(reflect.ValueOf(key), numberByType(n, target.Type()))
+		return nil
+	}
+	target := getDictTarget(v, key, reflect.TypeOf(0))
+	n, err := decodeNumber(r, target)
 	if err != nil {
 		return err
 	}
-	if ok {
-		return err
+	if n.isUnsigned {
+		target.SetUint(n.unsigned)
+	} else {
+		target.SetInt(n.signed)
 	}
-	return decodeNumber(r, reflect.New(reflect.TypeOf(0)).Elem())
+	return nil
 }
 
 func setDictString(r *bufio.Reader, key string, v reflect.Value, ch byte) error {
-	run := func(v reflect.Value) (error, bool) {
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			kField := t.Field(i)
-			if kField.Tag.Get("bencode") == key {
-				return decodeString(r, v.Field(i), ch), true
-			}
+	if v.Kind() == reflect.Map {
+		target := getDictTarget(v, key, reflect.TypeOf(""))
+		err := decodeString(r, target, ch)
+		if err != nil {
+			return err
 		}
-		for i := 0; i < t.NumField(); i++ {
-			kField := t.Field(i)
-			if strings.ToLower(kField.Name) == key {
-				return decodeString(r, v.Field(i), ch), true
-			}
-		}
-		return nil, false
+		v.SetMapIndex(reflect.ValueOf(key), target)
+		return nil
 	}
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		kField := t.Field(i)
-		if kField.Anonymous {
-			vField := v.Field(i)
-			err, ok := run(vField)
-			if err != nil {
-				return err
-			}
-			if ok {
-				return err
-			}
-		}
-	}
-	err, ok := run(v)
-	if err != nil {
-		return err
-	}
-	if ok {
-		return err
-	}
-	return decodeString(r, reflect.New(reflect.TypeOf("")).Elem(), ch)
+	target := getDictTarget(v, key, reflect.TypeOf(""))
+	return decodeString(r, target, ch)
 }
