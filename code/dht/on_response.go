@@ -18,6 +18,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) []*Node {
 		logging.Error("decode discovery data failed of %s, err=%v", node.HexID(), err)
 		return nil
 	}
+	if len(resp.Response.Nodes)%26 > 0 {
+		return nil
+	}
 	uniq := make(map[string]bool)
 	ret := make([]*Node, 0, len(resp.Response.Nodes)/26)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
