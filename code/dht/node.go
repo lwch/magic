@@ -71,7 +71,7 @@ func (node *Node) AddrString() string {
 // Close close node
 func (node *Node) Close() {
 	node.cancel()
-	close(node.chRead)
+	// close(node.chRead) // TODO: debug close many times
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html

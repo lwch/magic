@@ -21,7 +21,7 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 	uniq := make(map[string]bool)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		if len(mgr.nodesAddr) >= mgr.maxNodes {
-			logging.Info("full nodes")
+			// logging.Info("full nodes")
 			return
 		}
 		var ip [4]byte
