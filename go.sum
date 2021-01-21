@@ -1,4 +1,6 @@
 github.com/lwch/bencode v0.0.0-20210120100425-6bd4da210fa6 h1:CiJgMFO7BGvu0bxpaWZZBxNIEEdRSTbXbYuPdubOCao=
 github.com/lwch/bencode v0.0.0-20210120100425-6bd4da210fa6/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
+github.com/lwch/bencode v0.0.0-20210121081126-ffa20b53c790 h1:XfBy3oeTNbgbhP7GNtLzq6UdYFlGH5GJpIXZVsKuv9I=
+github.com/lwch/bencode v0.0.0-20210121081126-ffa20b53c790/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d/go.mod h1:uEt0zu1MDC7WnVvodPBGSYAD/KMKk0v36xE8UE5veM8=
