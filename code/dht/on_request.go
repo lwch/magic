@@ -1,6 +1,8 @@
 package dht
 
 import (
+	"bytes"
+
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
@@ -43,6 +45,8 @@ func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
 	}
 }
 
+var emptyHash [20]byte
+
 func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
 	var req data.GetPeersRequest
 	err := bencode.Decode(buf, &req)
@@ -64,6 +68,9 @@ func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
 	_, err = mgr.listen.WriteTo(data, &node.addr)
 	if err != nil {
 		logging.Error("send get_peers response packet failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
 		return
 	}
 	for _, node := range nodes {
