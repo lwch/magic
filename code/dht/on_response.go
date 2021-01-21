@@ -20,7 +20,7 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 	}
 	uniq := make(map[string]bool)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
-		if len(mgr.nodes) >= mgr.maxNodes {
+		if len(mgr.nodesAddr) >= mgr.maxNodes {
 			logging.Info("full nodes")
 			return
 		}
@@ -54,10 +54,15 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		nextNode := newNode(mgr, mgr.id, next, addr)
 		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.AddrString())
 		mgr.Lock()
-		if node := mgr.nodes[nextNode.AddrString()]; node != nil {
+		addrNode := mgr.nodesAddr[nextNode.AddrString()]
+		if addrNode != nil {
+			addrNode.Close()
+		}
+		if node := mgr.nodesID[nextNode.HexID()]; node != nil && node != addrNode {
 			node.Close()
 		}
-		mgr.nodes[nextNode.AddrString()] = nextNode
+		mgr.nodesAddr[nextNode.AddrString()] = nextNode
+		mgr.nodesID[nextNode.HexID()] = nextNode
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
 	}
@@ -70,5 +75,8 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte) {
 		logging.Error("decode get_peers response data by not found failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	logging.Info("notfound=%s", notfound.Response.Nodes)
+	if len(notfound.Response.Nodes) > 0 {
+		mgr.onDiscovery(node, buf)
+		return
+	}
 }
