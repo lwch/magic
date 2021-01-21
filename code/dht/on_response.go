@@ -11,18 +11,19 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
+func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) []*Node {
 	var resp data.FindResponse
 	err := bencode.Decode(buf, &resp)
 	if err != nil {
 		logging.Error("decode discovery data failed of %s, err=%v", node.HexID(), err)
-		return
+		return nil
 	}
 	uniq := make(map[string]bool)
+	ret := make([]*Node, 0, len(resp.Response.Nodes)/26)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		if len(mgr.nodesAddr) >= mgr.maxNodes {
 			// logging.Info("full nodes")
-			return
+			return nil
 		}
 		var ip [4]byte
 		var port uint16
@@ -65,10 +66,12 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		mgr.nodesID[nextNode.HexID()] = nextNode
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
+		ret = append(ret, nextNode)
 	}
+	return ret
 }
 
-func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte) {
+func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 	var notfound data.GetPeersNotFoundResponse
 	err := bencode.Decode(buf, &notfound)
 	if err != nil {
@@ -76,7 +79,21 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte) {
 		return
 	}
 	if len(notfound.Response.Nodes) > 0 {
-		mgr.onDiscovery(node, buf)
+		nodes := mgr.onDiscovery(node, buf)
+		for _, node := range nodes {
+			if !mgr.rm.allowScan(hash) {
+				break
+			}
+			node.sendGet(mgr.listen, mgr.id, hash)
+			mgr.rm.scan(hash)
+		}
 		return
 	}
+	var found data.GetPeersResponse
+	err = bencode.Decode(buf, &found)
+	if err != nil {
+		logging.Error("decode get_peers response data by found failed of %s, err=%v", node.HexID(), err)
+		return
+	}
+	logging.Info("found: %v", found.Response.Values)
 }

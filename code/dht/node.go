@@ -14,6 +14,12 @@ import (
 
 const discoveryCacheSize = 4 // cache size of find_node tx
 const getCacheSize = 4       // cache size of get_peers tx
+const getLogCacheSize = 10   // cache size of get_log
+
+type getLog struct {
+	hash [20]byte
+	tx   string
+}
 
 // Node host
 type Node struct {
@@ -32,8 +38,10 @@ type Node struct {
 	disCache [discoveryCacheSize]string // tx
 
 	// scan
-	getIdx   int
-	getCache [getCacheSize]string // tx
+	getLogIdx   int
+	getLogCache [getLogCacheSize]getLog // tx => hash
+	getIdx      int
+	getCache    [getCacheSize]string // tx
 }
 
 func newNode(parent *NodeMgr, localID, id [20]byte, addr net.UDPAddr) *Node {
@@ -103,6 +111,11 @@ func (node *Node) sendGet(c *net.UDPConn, id, hash [20]byte) {
 		logging.Error("send get_peers packet failed of %s, err=%v", node.AddrString(), err)
 		return
 	}
+	node.getLogCache[node.getLogIdx%getLogCacheSize] = getLog{
+		hash: hash,
+		tx:   tx,
+	}
+	node.getLogIdx++
 	node.getCache[node.getIdx%getCacheSize] = tx
 	node.getIdx++
 }
@@ -177,7 +190,13 @@ func (node *Node) handleResponse(buf []byte, tx string) {
 	}
 	for i := 0; i < getCacheSize; i++ {
 		if node.getCache[i] == tx {
-			node.parent.onGetPeersResponse(node, buf)
+			for j := 0; j < getLogCacheSize; j++ {
+				log := node.getLogCache[j]
+				if log.tx == tx {
+					node.parent.onGetPeersResponse(node, buf, log.hash)
+					return
+				}
+			}
 			return
 		}
 	}
