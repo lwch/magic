@@ -177,6 +177,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		if uniq[fmt.Sprintf("%x", next)] {
 			continue
 		}
+		if mgr.Exists(next) {
+			continue
+		}
 		addr := net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
@@ -191,6 +194,13 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
 		mgr.Unlock()
 		uniq[fmt.Sprintf("%x", next)] = true
 	}
+}
+
+// Exists node exists
+func (mgr *NodeMgr) Exists(id [20]byte) bool {
+	mgr.RLock()
+	defer mgr.RUnlock()
+	return mgr.nodes[fmt.Sprintf("%x", id)] != nil
 }
 
 func (mgr *NodeMgr) topK(id [20]byte, n int) []*Node {
