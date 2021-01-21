@@ -2,6 +2,7 @@ package dht
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"net"
 	"time"
@@ -70,7 +71,9 @@ func (node *Node) Close() {
 
 // http://www.bittorrent.org/beps/bep_0005.html
 func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
-	data, tx, err := data.FindReq(id, data.RandID())
+	var next [20]byte
+	rand.Read(next[:])
+	data, tx, err := data.FindReq(id, next)
 	if err != nil {
 		logging.Error("build find_node packet failed of %s, err=%v", node.AddrString(), err)
 		return
