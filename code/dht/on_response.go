@@ -98,7 +98,19 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 		logging.Error("decode get_peers response data by found failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	if len(found.Response.Values) > 0 {
-		logging.Info("found: %v", found.Response.Values)
+	for _, peer := range found.Response.Values {
+		var ip [4]byte
+		var port uint16
+		err = binary.Read(strings.NewReader(peer), binary.BigEndian, &ip)
+		if err != nil {
+			logging.Error("read ip failed of %s, err=%v", node.HexID(), err)
+			continue
+		}
+		err = binary.Read(strings.NewReader(peer[4:]), binary.BigEndian, &port)
+		if err != nil {
+			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
+			continue
+		}
+		logging.Info("found: %x in %s:%d", hash, net.IP(ip[:]).String(), port)
 	}
 }
