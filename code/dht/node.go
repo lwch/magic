@@ -111,10 +111,9 @@ func (node *Node) sendGet(c *net.UDPConn, id, hash [20]byte) {
 		logging.Error("send get_peers packet failed of %s, err=%v", node.AddrString(), err)
 		return
 	}
-	node.getLogCache[node.getLogIdx%getLogCacheSize] = getLog{
-		hash: hash,
-		tx:   tx,
-	}
+	idx := node.getLogIdx % getLogCacheSize
+	copy(node.getLogCache[idx].hash[:], hash[:])
+	node.getLogCache[idx].tx = tx
 	node.getLogIdx++
 	node.getCache[node.getIdx%getCacheSize] = tx
 	node.getIdx++
