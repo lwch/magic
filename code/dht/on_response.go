@@ -98,5 +98,7 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 		logging.Error("decode get_peers response data by found failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	logging.Info("found: %v", found.Response.Values)
+	if len(found.Response.Values) > 0 {
+		logging.Info("found: %v", found.Response.Values)
+	}
 }
