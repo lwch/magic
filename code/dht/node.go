@@ -12,7 +12,8 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-const discoveryCacheSize = 10
+const discoveryCacheSize = 4 // cache size of find_node tx
+const getCacheSize = 4       // cache size of get_peers tx
 
 // Node host
 type Node struct {
@@ -29,6 +30,10 @@ type Node struct {
 	// discovery
 	disIdx   int
 	disCache [discoveryCacheSize]string // tx
+
+	// scan
+	getIdx   int
+	getCache [getCacheSize]string // tx
 }
 
 func newNode(parent *NodeMgr, localID, id [20]byte, addr net.UDPAddr) *Node {
@@ -85,6 +90,21 @@ func (node *Node) sendDiscovery(c *net.UDPConn, id [20]byte) {
 	}
 	node.disCache[node.disIdx%discoveryCacheSize] = tx
 	node.disIdx++
+}
+
+func (node *Node) sendGet(c *net.UDPConn, id, hash [20]byte) {
+	data, tx, err := data.GetPeers(id, hash)
+	if err != nil {
+		logging.Error("build get_peers packet failed of %s, err=%v", node.AddrString(), err)
+		return
+	}
+	_, err = c.WriteTo(data, &node.addr)
+	if err != nil {
+		logging.Error("send get_peers packet failed of %s, err=%v", node.AddrString(), err)
+		return
+	}
+	node.getCache[node.getIdx%getCacheSize] = tx
+	node.getIdx++
 }
 
 func (node *Node) keepAlive(id [20]byte) {
@@ -152,6 +172,12 @@ func (node *Node) handleResponse(buf []byte, tx string) {
 	for i := 0; i < discoveryCacheSize; i++ {
 		if node.disCache[i] == tx {
 			node.parent.onDiscovery(node, buf)
+			return
+		}
+	}
+	for i := 0; i < getCacheSize; i++ {
+		if node.getCache[i] == tx {
+			node.parent.onGetPeersResponse(node, buf)
 			return
 		}
 	}

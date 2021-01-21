@@ -7,11 +7,9 @@ import (
 	"math/rand"
 	"net"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
@@ -22,23 +20,25 @@ const topSize = 8
 type NodeMgr struct {
 	sync.RWMutex
 
-	listen  *net.UDPConn
-	id      [20]byte
-	nodes   map[string]*Node // ip:port => node
-	maxSize int
+	listen   *net.UDPConn
+	id       [20]byte
+	nodes    map[string]*Node // ip:port => node
+	maxNodes int
+	rm       *resMgr
 }
 
 // NewNodeMgr new node manager
-func NewNodeMgr(listen uint16, max int) (*NodeMgr, error) {
+func NewNodeMgr(listen uint16, maxNodes, maxRes, maxScan int) (*NodeMgr, error) {
 	c, err := net.ListenUDP("udp", &net.UDPAddr{Port: int(listen)})
 	if err != nil {
 		return nil, err
 	}
 	mgr := &NodeMgr{
-		listen:  c,
-		id:      data.RandID(),
-		nodes:   make(map[string]*Node, max),
-		maxSize: max,
+		listen:   c,
+		id:       data.RandID(),
+		nodes:    make(map[string]*Node, maxNodes),
+		maxNodes: maxNodes,
+		rm:       newResMgr(maxRes, maxScan),
 	}
 	go mgr.keepAlive()
 	go mgr.recv()
@@ -111,7 +111,7 @@ func (mgr *NodeMgr) handleData(addr net.Addr, buf []byte) {
 func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 	mgr.bootstrap(addrs)
 	for {
-		if len(mgr.nodes) >= mgr.maxSize {
+		if len(mgr.nodes) >= mgr.maxNodes {
 			time.Sleep(time.Second)
 			continue
 		}
@@ -119,7 +119,7 @@ func (mgr *NodeMgr) Discovery(addrs []*net.UDPAddr) {
 		rand.Shuffle(len(nodes), func(i, j int) {
 			nodes[i], nodes[j] = nodes[j], nodes[i]
 		})
-		left := mgr.maxSize - len(mgr.nodes)
+		left := mgr.maxNodes - len(mgr.nodes)
 		if left < 0 {
 			time.Sleep(time.Second)
 			continue
@@ -142,58 +142,6 @@ func (mgr *NodeMgr) bootstrap(addrs []*net.UDPAddr) {
 		mgr.nodes[node.AddrString()] = node
 	}
 	mgr.Unlock()
-}
-
-func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) {
-	var resp data.FindResponse
-	err := bencode.Decode(buf, &resp)
-	if err != nil {
-		logging.Error("decode discovery data failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	uniq := make(map[string]bool)
-	for i := 0; i < len(resp.Response.Nodes); i += 26 {
-		if len(mgr.nodes) >= mgr.maxSize {
-			logging.Info("full nodes")
-			return
-		}
-		var ip [4]byte
-		var port uint16
-		err = binary.Read(strings.NewReader(resp.Response.Nodes[i+20:]), binary.BigEndian, &ip)
-		if err != nil {
-			logging.Error("read ip failed of %s, err=%v", node.HexID(), err)
-			continue
-		}
-		err = binary.Read(strings.NewReader(resp.Response.Nodes[i+24:]), binary.BigEndian, &port)
-		if err != nil {
-			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
-			continue
-		}
-		if port == 0 {
-			continue
-		}
-		var next [20]byte
-		copy(next[:], resp.Response.Nodes[i:i+20])
-		if uniq[fmt.Sprintf("%x", next)] {
-			continue
-		}
-		if mgr.Exists(next) {
-			continue
-		}
-		addr := net.UDPAddr{
-			IP:   net.IP(ip[:]),
-			Port: int(port),
-		}
-		nextNode := newNode(mgr, mgr.id, next, addr)
-		logging.Debug("discovery node %s, addr=%s", node.HexID(), node.AddrString())
-		mgr.Lock()
-		if node := mgr.nodes[nextNode.AddrString()]; node != nil {
-			node.Close()
-		}
-		mgr.nodes[nextNode.AddrString()] = nextNode
-		mgr.Unlock()
-		uniq[fmt.Sprintf("%x", next)] = true
-	}
 }
 
 // Exists node exists
@@ -233,86 +181,4 @@ func formatNodes(nodes []*Node) []byte {
 		copy(ret[i*26+20:], ipPort.Bytes())
 	}
 	return ret
-}
-
-func (mgr *NodeMgr) onPing(node *Node, buf []byte) {
-	data, err := data.PingRep(mgr.id)
-	if err != nil {
-		logging.Error("build ping response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
-	if err != nil {
-		logging.Error("send ping response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-}
-
-func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
-	var req data.FindRequest
-	err := bencode.Decode(buf, &req)
-	if err != nil {
-		logging.Error("parse find_node packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	nodes := mgr.topK(req.Data.Target, topSize)
-	if nodes == nil {
-		logging.Info("less nodes")
-		return
-	}
-	data, err := data.FindRep(mgr.id, string(formatNodes(nodes)))
-	if err != nil {
-		logging.Error("build find_node response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
-	if err != nil {
-		logging.Error("send find_node response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-}
-
-func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
-	var req data.GetPeersRequest
-	err := bencode.Decode(buf, &req)
-	if err != nil {
-		logging.Error("parse get_peers packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	logging.Info("get_peers: %x", req.Data.Hash)
-	nodes := mgr.topK(req.Data.Hash, topSize)
-	if nodes == nil {
-		logging.Info("less nodes")
-		return
-	}
-	data, err := data.GetPeersNotFound(mgr.id, data.Rand(32), string(formatNodes(nodes)))
-	if err != nil {
-		logging.Error("build get_peers response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
-	if err != nil {
-		logging.Error("send get_peers response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-}
-
-func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
-	var req data.AnnouncePeerRequest
-	err := bencode.Decode(buf, &req)
-	if err != nil {
-		logging.Error("parse announce_peer packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	logging.Info("announce_peer: %x", req.Data.Hash)
-	data, err := data.AnnouncePeer(mgr.id)
-	if err != nil {
-		logging.Error("build announce_peer response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
-	if err != nil {
-		logging.Error("send announce_peer response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
 }
