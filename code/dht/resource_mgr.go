@@ -157,7 +157,7 @@ func makeHandshake(hash [20]byte) []byte {
 
 func readHandshake(c net.Conn) error {
 	var l [1]byte
-	c.SetReadDeadline(time.Now().Add(time.Second))
+	c.SetReadDeadline(time.Now().Add(10 * time.Second))
 	_, err := c.Read(l[:])
 	if err != nil {
 		return err
