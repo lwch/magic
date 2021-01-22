@@ -90,9 +90,9 @@ func (mgr *resMgr) scan(hash [20]byte) {
 		mgr.size++
 		return
 	}
-	// minimum elimination
+	// maximum elimination
 	sort.Slice(mgr.list, func(i, j int) bool {
-		return mgr.list[i].cnt < mgr.list[j].cnt
+		return mgr.list[i].cnt > mgr.list[j].cnt
 	})
 	mgr.list[0].hash = hash
 	mgr.list[0].cnt = 1
