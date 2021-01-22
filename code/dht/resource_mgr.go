@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/lwch/magic/code/data"
@@ -144,12 +145,18 @@ func (mgr *resMgr) print() {
 
 func (mgr *resMgr) getInfo() {
 	get := func() {
+		var wg sync.WaitGroup
 		for i := 0; i < len(mgr.found); i++ {
 			if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
 				break
 			}
-			mgr.get(mgr.found[i])
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				mgr.get(mgr.found[i])
+			}(i)
 		}
+		wg.Wait()
 	}
 	for {
 		if mgr.foundIdx > 0 {
