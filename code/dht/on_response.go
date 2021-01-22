@@ -102,6 +102,7 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 		logging.Error("decode get_peers response data by found failed of %s, err=%v", node.HexID(), err)
 		return
 	}
+	uniq := make(map[string]bool)
 	for _, peer := range found.Response.Values {
 		var ip [4]byte
 		var port uint16
@@ -115,7 +116,11 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
 			continue
 		}
-		logging.Info("found: %x %x in %s:%d", found.Response.ID, hash, net.IP(ip[:]).String(), port)
+		addr := fmt.Sprintf("%s:%d", net.IP(ip[:]).String(), port)
+		if uniq[addr] {
+			continue
+		}
 		mgr.rm.markFound(hash, net.IP(ip[:]), port)
+		uniq[addr] = true
 	}
 }
