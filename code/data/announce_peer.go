@@ -9,7 +9,7 @@ type AnnouncePeerRequest struct {
 	Data   struct {
 		ID      [20]byte `bencode:"id"`
 		Hash    [20]byte `bencode:"info_hash"`
-		HasPort int      `bencode:"implied_port"`
+		Implied int      `bencode:"implied_port"`
 		Port    uint16   `bencode:"port"`
 	} `bencode:"a"`
 }

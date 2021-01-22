@@ -100,5 +100,9 @@ func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
 		logging.Error("send announce_peer response packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
-	mgr.rm.markFound(req.Data.Hash, node.addr.IP, req.Data.Port)
+	port := node.addr.Port
+	if req.Data.Implied != 0 {
+		port = int(req.Data.Port)
+	}
+	mgr.rm.markFound(req.Data.Hash, node.addr.IP, uint16(port))
 }
