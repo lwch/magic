@@ -98,7 +98,7 @@ func (mgr *resMgr) print() {
 				break
 			}
 			res := mgr.found[i]
-			logging.Info("found res: %x, ip=%s, port=%d", res.hash, res.ip.String(), res.port)
+			logging.Info("resource: %x in %s:%d", res.hash, res.ip.String(), res.port)
 		}
 	}
 	for {
