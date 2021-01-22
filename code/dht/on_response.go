@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -75,6 +76,9 @@ func (mgr *NodeMgr) onDiscovery(node *Node, buf []byte) []*Node {
 }
 
 func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
+	if bytes.Equal(hash[:], emptyHash[:]) {
+		return
+	}
 	var notfound data.GetPeersNotFoundResponse
 	err := bencode.Decode(buf, &notfound)
 	if err != nil {
