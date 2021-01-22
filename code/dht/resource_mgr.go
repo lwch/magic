@@ -99,7 +99,7 @@ func (mgr *resMgr) scan(hash [20]byte) {
 }
 
 func (mgr *resMgr) markFound(hash [20]byte, ip net.IP, port uint16) {
-	idx := mgr.foundIdx % mgr.maxScan
+	idx := mgr.foundIdx % len(mgr.found)
 	mgr.found[idx] = foundRes{
 		hash: hash,
 		ip:   ip,
