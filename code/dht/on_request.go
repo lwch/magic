@@ -100,4 +100,5 @@ func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
 		logging.Error("send announce_peer response packet failed of %s, err=%v", node.HexID(), err)
 		return
 	}
+	mgr.rm.markFound(req.Data.Hash)
 }
