@@ -131,9 +131,7 @@ func (mgr *resMgr) print() {
 		logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/len(mgr.list), max)
 	}
 	for {
-		if mgr.foundIdx > 0 {
-			show()
-		}
+		show()
 		time.Sleep(time.Second)
 	}
 }
