@@ -56,7 +56,7 @@ func newNode(parent *NodeMgr, localID, id [20]byte, addr net.UDPAddr) *Node {
 		ctx:    ctx,
 		cancel: cancel,
 	}
-	go node.keepAlive(localID)
+	// go node.keepAlive(localID)
 	go node.recv()
 	return node
 }
