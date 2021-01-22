@@ -110,13 +110,25 @@ func (mgr *resMgr) markFound(hash [20]byte, ip net.IP, port uint16) {
 
 func (mgr *resMgr) print() {
 	show := func() {
+		links := 0
 		for i := 0; i < len(mgr.found); i++ {
 			if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
 				break
 			}
 			res := mgr.found[i]
 			logging.Info("resource: %x in %s:%d", res.hash, res.ip.String(), res.port)
+			links++
 		}
+		var total int
+		var max int
+		for i := 0; i < len(mgr.list); i++ {
+			res := mgr.list[i]
+			if res.cnt > max {
+				max = res.cnt
+			}
+			total += res.cnt
+		}
+		logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/len(mgr.list), max)
 	}
 	for {
 		if mgr.foundIdx > 0 {
