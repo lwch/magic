@@ -2,7 +2,9 @@ package dht
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
@@ -193,8 +196,53 @@ func readHandshake(c net.Conn) error {
 	if string(data[0:19]) != protocol {
 		return fmt.Errorf("invalid protocol: %s", string(data[0:19]))
 	}
-	logging.Info("info: %s", hex.Dump(data[19:27]))
+	// http://www.bittorrent.org/beps/bep_0010.html
+	if data[24]&0x10 == 0 {
+		return errors.New("not support extended messaging")
+	}
 	return nil
+}
+
+func sendExtHeader(c net.Conn) error {
+	// http://www.bittorrent.org/beps/bep_0009.html
+	var data struct {
+		M struct {
+			Action int `bencode:"ut_metadata"`
+		} `bencode:"m"`
+	}
+	data.M.Action = 3
+	raw, err := bencode.Encode(data)
+	if err != nil {
+		return err
+	}
+	// http://www.bittorrent.org/beps/bep_0010.html
+	raw = append([]byte{20, 0}, raw...)
+	c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	err = binary.Write(c, binary.BigEndian, uint32(len(raw)))
+	if err != nil {
+		return fmt.Errorf("sendExtHeader length failed: %v", err)
+	}
+	_, err = c.Write(raw)
+	if err != nil {
+		return fmt.Errorf("sendExtHeader data failed: %v", err)
+	}
+	return nil
+}
+
+func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
+	// http://www.bittorrent.org/beps/bep_0010.html
+	c.SetReadDeadline(time.Now().Add(10 * time.Second))
+	var l uint32
+	err := binary.Read(c, binary.BigEndian, &l)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("read header failed: %v", err)
+	}
+	payload := make([]byte, l)
+	_, err = io.ReadFull(c, payload)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
+	}
+	return payload[0], payload[1], payload[2:], nil
 }
 
 func (mgr *resMgr) get(r foundRes) {
@@ -218,5 +266,19 @@ func (mgr *resMgr) get(r foundRes) {
 	if err != nil {
 		logging.Error("*GET* read handshake length to %s failed, err=%v", addr, err)
 		return
+	}
+	err = sendExtHeader(c)
+	if err != nil {
+		logging.Error("*GET* send ext header to %s failed, err=%v", addr, err)
+		return
+	}
+	for {
+		msgID, extID, data, err := readPeerData(c)
+		if err != nil {
+			logging.Error("*GET* read peer data to %s failed, err=%v", addr, err)
+			return
+		}
+		logging.Info("msg_id=%d, ext_id=%d", msgID, extID)
+		logging.Info("read_data: %s", hex.Dump(data))
 	}
 }
