@@ -74,14 +74,6 @@ func (mgr *resMgr) allowScan(hash [20]byte) bool {
 }
 
 func (mgr *resMgr) scan(hash [20]byte) {
-	// list not full
-	size := mgr.size
-	if size < len(mgr.list) {
-		mgr.list[size].hash = hash
-		mgr.list[size].cnt = 1
-		mgr.size++
-		return
-	}
 	// exists
 	for i := 0; i < len(mgr.list); i++ {
 		r := &mgr.list[i]
@@ -89,6 +81,14 @@ func (mgr *resMgr) scan(hash [20]byte) {
 			r.cnt++
 			return
 		}
+	}
+	// list not full
+	size := mgr.size
+	if size < len(mgr.list) {
+		mgr.list[size].hash = hash
+		mgr.list[size].cnt = 1
+		mgr.size++
+		return
 	}
 	// minimum elimination
 	sort.Slice(mgr.list, func(i, j int) bool {
