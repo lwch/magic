@@ -190,7 +190,7 @@ func readHandshake(c net.Conn) error {
 	if err != nil {
 		return err
 	}
-	if string(data[1:20]) != protocol {
+	if string(data[0:19]) != protocol {
 		return fmt.Errorf("invalid protocol: %s", string(data[1:20]))
 	}
 	logging.Info("info: %s", hex.Dump(data[20:28]))
