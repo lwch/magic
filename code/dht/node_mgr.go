@@ -41,7 +41,7 @@ func NewNodeMgr(listen uint16, maxNodes, maxRes, maxScan int) (*NodeMgr, error) 
 		nodesAddr: make(map[string]*Node, maxNodes),
 		nodesID:   make(map[string]*Node, maxNodes),
 		maxNodes:  maxNodes,
-		rm:        newResMgr(id, maxRes, maxScan),
+		rm:        newResMgr(maxRes, maxScan),
 	}
 	go mgr.keepAlive()
 	go mgr.recv()

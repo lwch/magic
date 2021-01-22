@@ -2,14 +2,19 @@ package dht
 
 import (
 	"bytes"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sort"
 	"time"
 
+	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
+
+const protocol = "BitTorrent protocol"
 
 type res struct {
 	hash [20]byte
@@ -31,7 +36,6 @@ type metaInfo struct {
 }
 
 type resMgr struct {
-	id       [20]byte
 	list     []res
 	foundIdx int
 	found    []foundRes
@@ -40,9 +44,8 @@ type resMgr struct {
 	maxScan  int
 }
 
-func newResMgr(id [20]byte, maxRes, maxScan int) *resMgr {
+func newResMgr(maxRes, maxScan int) *resMgr {
 	mgr := &resMgr{
-		id:      id,
 		list:    make([]res, maxRes),
 		found:   make([]foundRes, maxRes),
 		maxScan: maxScan,
@@ -140,13 +143,35 @@ func (mgr *resMgr) getInfo() {
 	}
 }
 
-func makeHandshake(id, hash [20]byte) []byte {
+// http://www.bittorrent.org/beps/bep_0003.html
+func makeHandshake(hash [20]byte) []byte {
 	ret := make([]byte, 68)
 	ret[0] = 19
-	copy(ret[1:], "BitTorrent protocol")
+	copy(ret[1:], protocol)
+	// 20:28 is reserved
 	copy(ret[28:], hash[:])
+	id := data.RandID()
 	copy(ret[48:], id[:])
 	return ret
+}
+
+func readHandshake(c net.Conn) error {
+	var l [1]byte
+	c.SetReadDeadline(time.Now().Add(time.Second))
+	_, err := c.Read(l[:])
+	if err != nil {
+		return err
+	}
+	data := make([]byte, l[0]+48) // same as handshake request
+	_, err = io.ReadFull(c, data)
+	if err != nil {
+		return err
+	}
+	if string(data[1:20]) != protocol {
+		return errors.New("invalid protocol")
+	}
+	logging.Info("info: %s", hex.Dump(data[20:28]))
+	return nil
 }
 
 func (mgr *resMgr) get(r foundRes) {
@@ -164,23 +189,14 @@ func (mgr *resMgr) get(r foundRes) {
 		return
 	}
 	defer c.Close()
-	_, err = c.Write(makeHandshake(mgr.id, r.hash))
+	_, err = c.Write(makeHandshake(r.hash))
 	if err != nil {
 		logging.Error("*GET* write handshake to %s failed, err=%v", addr, err)
 		return
 	}
-	c.SetReadDeadline(time.Now().Add(time.Second))
-	var l [1]byte
-	_, err = c.Read(l[:])
+	err = readHandshake(c)
 	if err != nil {
 		logging.Error("*GET* read handshake length to %s failed, err=%v", addr, err)
 		return
 	}
-	data := make([]byte, l[0]+48)
-	_, err = io.ReadFull(c, data)
-	if err != nil {
-		logging.Error("*GET* read handshake data to %s failed, err=%v", addr, err)
-		return
-	}
-	logging.Info("handshake data: %s", string(data))
 }
