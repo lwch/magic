@@ -47,7 +47,7 @@ func newResMgr(id [20]byte, maxRes, maxScan int) *resMgr {
 		found:   make([]foundRes, maxRes),
 		maxScan: maxScan,
 	}
-	// go mgr.print()
+	go mgr.print()
 	go mgr.getInfo()
 	return mgr
 }
