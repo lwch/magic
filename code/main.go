@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	mgr, err := dht.NewNodeMgr(6881, 20000, 10000, 100)
+	mgr, err := dht.NewNodeMgr(6881, 30000, 1000, 1000)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
 }
