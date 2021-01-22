@@ -116,8 +116,6 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 			continue
 		}
 		logging.Info("found: %x %x in %s:%d", found.Response.ID, hash, net.IP(ip[:]).String(), port)
-	}
-	if len(found.Response.Values) > 0 {
-		mgr.rm.markFound(hash)
+		mgr.rm.markFound(hash, net.IP(ip[:]), port)
 	}
 }
