@@ -190,11 +190,9 @@ func (node *Node) handleResponse(buf []byte, tx string) {
 	for i := 0; i < getCacheSize; i++ {
 		if node.getCache[i] == tx {
 			for j := 0; j < getLogCacheSize; j++ {
-				var hash [20]byte
-				logTX := node.getLogCache[j].tx
-				copy(hash[:], node.getLogCache[j].hash[:])
-				if logTX == tx {
-					node.parent.onGetPeersResponse(node, buf, hash)
+				log := node.getLogCache[j]
+				if log.tx == tx {
+					node.parent.onGetPeersResponse(node, buf, log.hash)
 					return
 				}
 			}

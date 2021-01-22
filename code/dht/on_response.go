@@ -111,6 +111,6 @@ func (mgr *NodeMgr) onGetPeersResponse(node *Node, buf []byte, hash [20]byte) {
 			logging.Error("read port failed of %s, err=%v", node.HexID(), err)
 			continue
 		}
-		logging.Info("found: %x in %s:%d", hash, net.IP(ip[:]).String(), port)
+		logging.Info("found: %x %x in %s:%d", found.Response.ID, hash, net.IP(ip[:]).String(), port)
 	}
 }
