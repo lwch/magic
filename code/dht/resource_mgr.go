@@ -119,16 +119,21 @@ func (mgr *resMgr) print() {
 			logging.Info("resource: %x in %s:%d", res.hash, res.ip.String(), res.port)
 			links++
 		}
+		var cnt int
 		var total int
 		var max int
 		for i := 0; i < len(mgr.list); i++ {
 			res := mgr.list[i]
+			if bytes.Equal(res.hash[:], emptyHash[:]) {
+				break
+			}
 			if res.cnt > max {
 				max = res.cnt
 			}
 			total += res.cnt
+			cnt++
 		}
-		logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/len(mgr.list), max)
+		logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/cnt, max)
 	}
 	for {
 		show()
