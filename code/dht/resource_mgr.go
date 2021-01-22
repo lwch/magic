@@ -203,10 +203,7 @@ func (mgr *resMgr) get(r foundRes) {
 		return
 	}
 	addr := fmt.Sprintf("%s:%d", r.ip.String(), r.port)
-	c, err := net.DialTCP("tcp", nil, &net.TCPAddr{
-		IP:   r.ip,
-		Port: int(r.port),
-	})
+	c, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", r.ip.String(), r.port), 5*time.Second)
 	if err != nil {
 		logging.Error("*GET* connect to %s failed, err=%v", addr, err)
 		return
