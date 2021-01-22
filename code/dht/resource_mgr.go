@@ -133,7 +133,9 @@ func (mgr *resMgr) print() {
 			total += res.cnt
 			cnt++
 		}
-		logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/cnt, max)
+		if cnt > 0 {
+			logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/cnt, max)
+		}
 	}
 	for {
 		show()
