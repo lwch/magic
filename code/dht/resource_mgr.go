@@ -169,6 +169,7 @@ func (mgr *resMgr) get(r foundRes) {
 		logging.Error("*GET* write handshake to %s failed, err=%v", addr, err)
 		return
 	}
+	c.SetReadDeadline(time.Now().Add(time.Second))
 	var l [1]byte
 	_, err = c.Read(l[:])
 	if err != nil {
