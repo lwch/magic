@@ -2,6 +2,8 @@ package dht
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"net"
 	"sort"
 	"time"
@@ -20,21 +22,33 @@ type foundRes struct {
 	port uint16
 }
 
+type metaInfo struct {
+	hash [20]byte
+	ip   net.IP
+	port uint16
+	name string
+	size uint64
+}
+
 type resMgr struct {
+	id       [20]byte
 	list     []res
 	foundIdx int
 	found    []foundRes
+	info     map[string]metaInfo
 	size     int
 	maxScan  int
 }
 
-func newResMgr(maxRes, maxScan int) *resMgr {
+func newResMgr(id [20]byte, maxRes, maxScan int) *resMgr {
 	mgr := &resMgr{
+		id:      id,
 		list:    make([]res, maxRes),
 		found:   make([]foundRes, maxRes),
 		maxScan: maxScan,
 	}
-	go mgr.print()
+	// go mgr.print()
+	go mgr.getInfo()
 	return mgr
 }
 
@@ -107,4 +121,65 @@ func (mgr *resMgr) print() {
 		}
 		time.Sleep(time.Second)
 	}
+}
+
+func (mgr *resMgr) getInfo() {
+	get := func() {
+		for i := 0; i < len(mgr.found); i++ {
+			if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
+				break
+			}
+			mgr.get(mgr.found[i])
+		}
+	}
+	for {
+		if mgr.foundIdx > 0 {
+			get()
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func makeHandshake(id, hash [20]byte) []byte {
+	ret := make([]byte, 68)
+	ret[0] = 19
+	copy(ret[1:], "BitTorrent protocol")
+	copy(ret[28:], hash[:])
+	copy(ret[48:], id[:])
+	return ret
+}
+
+func (mgr *resMgr) get(r foundRes) {
+	hexID := fmt.Sprintf("%x", r.hash)
+	if _, ok := mgr.info[hexID]; ok {
+		return
+	}
+	addr := fmt.Sprintf("%s:%d", r.ip.String(), r.port)
+	c, err := net.DialTCP("tcp", nil, &net.TCPAddr{
+		IP:   r.ip,
+		Port: int(r.port),
+	})
+	if err != nil {
+		logging.Error("*GET* connect to %s failed, err=%v", addr, err)
+		return
+	}
+	defer c.Close()
+	_, err = c.Write(makeHandshake(mgr.id, r.hash))
+	if err != nil {
+		logging.Error("*GET* write handshake to %s failed, err=%v", addr, err)
+		return
+	}
+	var l [1]byte
+	_, err = c.Read(l[:])
+	if err != nil {
+		logging.Error("*GET* read handshake length to %s failed, err=%v", addr, err)
+		return
+	}
+	data := make([]byte, l[0]+48)
+	_, err = io.ReadFull(c, data)
+	if err != nil {
+		logging.Error("*GET* read handshake data to %s failed, err=%v", addr, err)
+		return
+	}
+	logging.Info("handshake data: %s", string(data))
 }

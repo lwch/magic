@@ -34,13 +34,14 @@ func NewNodeMgr(listen uint16, maxNodes, maxRes, maxScan int) (*NodeMgr, error) 
 	if err != nil {
 		return nil, err
 	}
+	id := data.RandID()
 	mgr := &NodeMgr{
 		listen:    c,
-		id:        data.RandID(),
+		id:        id,
 		nodesAddr: make(map[string]*Node, maxNodes),
 		nodesID:   make(map[string]*Node, maxNodes),
 		maxNodes:  maxNodes,
-		rm:        newResMgr(maxRes, maxScan),
+		rm:        newResMgr(id, maxRes, maxScan),
 	}
 	go mgr.keepAlive()
 	go mgr.recv()
