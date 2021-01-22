@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -185,7 +184,7 @@ func readHandshake(c net.Conn) error {
 		return err
 	}
 	if string(data[1:20]) != protocol {
-		return errors.New("invalid protocol")
+		return fmt.Errorf("invalid protocol: %s", string(data[1:20]))
 	}
 	logging.Info("info: %s", hex.Dump(data[20:28]))
 	return nil
