@@ -36,15 +36,29 @@ func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	rand.Read(next[:])
 	pkt, tx, err := data.FindReq(id, next)
 	if err != nil {
-		logging.Error("build find_node packet failed of %s, err=%v", n.addr.String(), err)
+		logging.Error("build find_node packet failed" + n.errInfo(err))
 		return
 	}
 	_, err = c.WriteTo(pkt, &n.addr)
 	if err != nil {
-		logging.Error("send find_node packet failed of %s, err=%v", n.addr.String(), err)
+		logging.Error("send find_node packet failed" + n.errInfo(err))
 		return
 	}
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
+}
+
+func (n *node) sendGet(c *net.UDPConn, local, hash hashType) {
+	buf, tx, err := data.GetPeers(local, hash)
+	if err != nil {
+		logging.Error("build get_peers packet failed" + n.errInfo(err))
+		return
+	}
+	_, err = c.WriteTo(buf, &n.addr)
+	if err != nil {
+		logging.Error("send get_peers packet failed" + n.errInfo(err))
+		return
+	}
+	n.dht.tx.add(tx, data.TypeGetPeers, hash, emptyHash)
 }
 
 func (n *node) onRecv(buf []byte) {
@@ -83,6 +97,8 @@ func (n *node) handleResponse(buf []byte, tx string) {
 	switch txr.t {
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
+	case data.TypeGetPeers:
+		n.onGetPeersResp(buf, txr.hash)
 	}
 }
 

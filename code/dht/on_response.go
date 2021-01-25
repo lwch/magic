@@ -50,3 +50,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 		n.dht.tb.add(node)
 	}
 }
+
+func (n *node) onGetPeersResp(buf []byte, hash hashType) {
+	logging.Info("onGetPeersResp: %x", hash)
+}

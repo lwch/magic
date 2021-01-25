@@ -72,8 +72,7 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("not enough nodes")
 		return
 	}
-	tk := n.dht.tk.new(req.Data.Hash, n.id)
-	data, err := data.GetPeersNotFound(n.dht.local, tk, string(compactNodes(nodes)))
+	data, err := data.GetPeersNotFound(n.dht.local, data.Rand(16), string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
 		return
@@ -82,5 +81,11 @@ func (n *node) onGetPeers(buf []byte) {
 	if err != nil {
 		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
+	}
+	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
+		return
+	}
+	for _, node := range nodes {
+		node.sendGet(n.dht.listen, n.dht.local, req.Data.Hash)
 	}
 }
