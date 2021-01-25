@@ -19,9 +19,10 @@ type node struct {
 
 func newNode(dht *DHT, id idType, addr net.UDPAddr) *node {
 	return &node{
-		dht:  dht,
-		id:   id,
-		addr: addr,
+		dht:     dht,
+		id:      id,
+		addr:    addr,
+		updated: time.Now(),
 	}
 }
 

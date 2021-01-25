@@ -113,7 +113,7 @@ func (t *table) findID(id idType) *node {
 
 func (t *table) onDiscovery(c *net.UDPConn) {
 	run := func(m map[string]*node) {
-		left := len(m)
+		left := t.max - len(m)
 		maxLimit := left / 8
 		if maxLimit <= 0 {
 			return
