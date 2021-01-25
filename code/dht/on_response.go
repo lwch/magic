@@ -52,5 +52,5 @@ func (n *node) onFindNodeResp(buf []byte) {
 }
 
 func (n *node) onGetPeersResp(buf []byte, hash hashType) {
-	logging.Info("onGetPeersResp: %x", hash)
+	logging.Info("onGetPeersResp: %s", hash.String())
 }
