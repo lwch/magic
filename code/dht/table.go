@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -105,7 +106,7 @@ func (t *table) findAddr(addr net.Addr) *node {
 	return t.ipNodes[addr.String()]
 }
 
-func (t *table) findID(id idType) *node {
+func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
 	return t.idNodes[id.String()]
@@ -134,4 +135,23 @@ func (t *table) onDiscovery(c *net.UDPConn) {
 	run(t.ipNodes)
 	run(t.idNodes)
 	logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
+}
+
+func (t *table) neighbor(id hashType, n int) []*node {
+	nodes := t.copyNodes(t.idNodes)
+	if len(nodes) < n {
+		return nil
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		for x := 0; x < 20; x++ {
+			a := id[x] ^ nodes[i].id[x]
+			b := id[x] ^ nodes[j].id[x]
+			if a == b {
+				continue
+			}
+			return a < b
+		}
+		return false
+	})
+	return nodes[:n]
 }

@@ -9,14 +9,11 @@ import (
 	"github.com/lwch/magic/code/data"
 )
 
-type idType [20]byte
+const neighborSize = 8
+
 type hashType [20]byte
 
 var emptyHash hashType
-
-func (id idType) String() string {
-	return fmt.Sprintf("%x", [20]byte(id))
-}
 
 func (hash hashType) String() string {
 	return fmt.Sprintf("%x", [20]byte(hash))
@@ -27,7 +24,7 @@ type DHT struct {
 	listen *net.UDPConn
 	tb     *table
 	tx     *txMgr
-	local  idType
+	local  hashType
 
 	// runtime
 	ctx    context.Context

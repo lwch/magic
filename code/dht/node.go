@@ -2,6 +2,7 @@ package dht
 
 import (
 	"crypto/rand"
+	"fmt"
 	"net"
 	"time"
 
@@ -12,12 +13,12 @@ import (
 
 type node struct {
 	dht     *DHT
-	id      idType
+	id      hashType
 	addr    net.UDPAddr
 	updated time.Time
 }
 
-func newNode(dht *DHT, id idType, addr net.UDPAddr) *node {
+func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
 	return &node{
 		dht:     dht,
 		id:      id,
@@ -27,11 +28,10 @@ func newNode(dht *DHT, id idType, addr net.UDPAddr) *node {
 }
 
 func (n *node) close() {
-
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
-func (n *node) sendDiscovery(c *net.UDPConn, id idType) {
+func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	var next [20]byte
 	rand.Read(next[:])
 	pkt, tx, err := data.FindReq(id, next)
@@ -66,7 +66,9 @@ func (n *node) onRecv(buf []byte) {
 func (n *node) handleRequest(buf []byte) {
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
+		n.onPing()
 	case data.TypeFindNode:
+		n.onFindNode(buf)
 	case data.TypeGetPeers:
 	case data.TypeAnnouncePeer:
 	}
@@ -81,4 +83,9 @@ func (n *node) handleResponse(buf []byte, tx string) {
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
 	}
+}
+
+func (n *node) errInfo(err error) string {
+	return fmt.Sprintf("; id=%s, addr=%s, err=%v",
+		n.id.String(), n.addr.String(), err)
 }

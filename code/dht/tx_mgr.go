@@ -5,7 +5,7 @@ import "github.com/lwch/magic/code/data"
 type tx struct {
 	id     string
 	hash   hashType
-	remote idType
+	remote hashType
 	t      data.ReqType
 }
 
@@ -21,7 +21,7 @@ func newTXMgr(max int) *txMgr {
 func (mgr *txMgr) close() {
 }
 
-func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote idType) {
+func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
 	mgr.txs[mgr.idx%len(mgr.txs)] = tx{
 		id:     id,
 		hash:   hash,
