@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
@@ -32,19 +33,51 @@ func (n *node) close() {
 func (n *node) sendDiscovery(c *net.UDPConn, id idType) {
 	var next [20]byte
 	rand.Read(next[:])
-	data, tx, err := data.FindReq(id, next)
+	pkt, tx, err := data.FindReq(id, next)
 	if err != nil {
 		logging.Error("build find_node packet failed of %s, err=%v", n.addr.String(), err)
 		return
 	}
-	_, err = c.WriteTo(data, &n.addr)
+	_, err = c.WriteTo(pkt, &n.addr)
 	if err != nil {
 		logging.Error("send find_node packet failed of %s, err=%v", n.addr.String(), err)
 		return
 	}
-	n.dht.tx.add(tx, "find_node", emptyHash, n.id)
+	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
 func (n *node) onRecv(buf []byte) {
 	n.updated = time.Now()
+	var hdr data.Hdr
+	err := bencode.Decode(buf, &hdr)
+	if err != nil {
+		// TODO: log
+		return
+	}
+	switch {
+	case hdr.IsRequest():
+		n.handleRequest(buf)
+	case hdr.IsResponse():
+		n.handleResponse(buf, hdr.Transaction)
+	}
+}
+
+func (n *node) handleRequest(buf []byte) {
+	switch data.ParseReqType(buf) {
+	case data.TypePing:
+	case data.TypeFindNode:
+	case data.TypeGetPeers:
+	case data.TypeAnnouncePeer:
+	}
+}
+
+func (n *node) handleResponse(buf []byte, tx string) {
+	txr := n.dht.tx.find(tx)
+	if txr == nil {
+		return
+	}
+	switch txr.t {
+	case data.TypeFindNode:
+		n.onFindNodeResp(buf)
+	}
 }

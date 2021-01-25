@@ -105,6 +105,12 @@ func (t *table) findAddr(addr net.Addr) *node {
 	return t.ipNodes[addr.String()]
 }
 
+func (t *table) findID(id idType) *node {
+	t.RLock()
+	defer t.RUnlock()
+	return t.idNodes[id.String()]
+}
+
 func (t *table) onDiscovery(c *net.UDPConn) {
 	run := func(m map[string]*node) {
 		left := len(m)

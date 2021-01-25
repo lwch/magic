@@ -1,10 +1,12 @@
 package dht
 
+import "github.com/lwch/magic/code/data"
+
 type tx struct {
 	id     string
 	hash   hashType
 	remote idType
-	t      string
+	t      data.ReqType
 }
 
 type txMgr struct {
@@ -19,7 +21,7 @@ func newTXMgr(max int) *txMgr {
 func (mgr *txMgr) close() {
 }
 
-func (mgr *txMgr) add(id, t string, hash hashType, remote idType) {
+func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote idType) {
 	mgr.txs[mgr.idx%len(mgr.txs)] = tx{
 		id:     id,
 		hash:   hash,
@@ -27,4 +29,17 @@ func (mgr *txMgr) add(id, t string, hash hashType, remote idType) {
 		t:      t,
 	}
 	mgr.idx++
+}
+
+func (mgr *txMgr) find(tx string) *tx {
+	size := mgr.idx
+	if mgr.idx >= len(mgr.txs) {
+		size = len(mgr.txs)
+	}
+	for i := 0; i < size; i++ {
+		if mgr.txs[i].id == tx {
+			return &mgr.txs[i]
+		}
+	}
+	return nil
 }
