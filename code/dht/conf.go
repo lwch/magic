@@ -5,6 +5,7 @@ type Config struct {
 	Listen   uint16 // Default: 6881
 	MaxNodes int    // Default: 10000
 	MaxTX    int    // Default: 30000
+	MaxToken int    // Default: 10000
 }
 
 // NewConfig create default config
@@ -23,5 +24,8 @@ func (cfg *Config) checkDefault() {
 	}
 	if cfg.MaxTX <= 0 {
 		cfg.MaxTX = 30000
+	}
+	if cfg.MaxToken <= 0 {
+		cfg.MaxToken = 10000
 	}
 }

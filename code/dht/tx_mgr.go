@@ -3,10 +3,10 @@ package dht
 import "github.com/lwch/magic/code/data"
 
 type tx struct {
-	id     string
-	hash   hashType
-	remote hashType
-	t      data.ReqType
+	id     string       // transaction id
+	hash   hashType     // get_peers.info_hash
+	remote hashType     // find_node.target
+	t      data.ReqType // request type
 }
 
 type txMgr struct {

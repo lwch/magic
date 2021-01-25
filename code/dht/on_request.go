@@ -43,6 +43,10 @@ func (n *node) onFindNode(buf []byte) {
 		return
 	}
 	nodes := n.dht.tb.neighbor(req.Data.Target, neighborSize)
+	if len(nodes) < neighborSize {
+		logging.Error("not enough nodes")
+		return
+	}
 	data, err := data.FindRep(n.dht.local, string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build find_node response packet faield" + n.errInfo(err))
@@ -51,6 +55,32 @@ func (n *node) onFindNode(buf []byte) {
 	_, err = n.dht.listen.WriteTo(data, &n.addr)
 	if err != nil {
 		logging.Error("send find_node response packet failed" + n.errInfo(err))
+		return
+	}
+}
+
+func (n *node) onGetPeers(buf []byte) {
+	var req data.GetPeersRequest
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("decode get_peers request failed" + n.errInfo(err))
+		return
+	}
+	logging.Info("get_peers: %x", req.Data.Hash)
+	nodes := n.dht.tb.neighbor(req.Data.Hash, neighborSize)
+	if len(nodes) < neighborSize {
+		logging.Error("not enough nodes")
+		return
+	}
+	tk := n.dht.tk.new(req.Data.Hash, n.id)
+	data, err := data.GetPeersNotFound(n.dht.local, tk, string(compactNodes(nodes)))
+	if err != nil {
+		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
+		return
+	}
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
+	if err != nil {
+		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
 }

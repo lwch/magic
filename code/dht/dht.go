@@ -24,6 +24,7 @@ type DHT struct {
 	listen *net.UDPConn
 	tb     *table
 	tx     *txMgr
+	tk     *tokenMgr
 	local  hashType
 
 	// runtime
@@ -36,6 +37,7 @@ func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
 		tx:    newTXMgr(cfg.MaxTX),
+		tk:    newTokenMgr(cfg.MaxToken),
 		local: data.RandID(),
 	}
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -53,6 +55,7 @@ func (dht *DHT) Close() {
 	dht.listen.Close()
 	dht.tb.close()
 	dht.tx.close()
+	dht.tk.close()
 	dht.cancel()
 }
 

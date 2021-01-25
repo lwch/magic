@@ -70,6 +70,7 @@ func (n *node) handleRequest(buf []byte) {
 	case data.TypeFindNode:
 		n.onFindNode(buf)
 	case data.TypeGetPeers:
+		n.onGetPeers(buf)
 	case data.TypeAnnouncePeer:
 	}
 }
