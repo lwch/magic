@@ -7,16 +7,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
 type table struct {
 	sync.RWMutex
-	dht         *DHT
-	ipNodes     map[string]node
-	idNodes     map[string]node
-	max         int
-	chDiscovery chan *node
+	dht            *DHT
+	ipNodes        map[string]node
+	idNodes        map[string]node
+	max            int
+	chDiscovery    chan *node
+	bootstrapAddrs []*net.UDPAddr
 
 	// runtime
 	ctx    context.Context
@@ -41,6 +43,14 @@ func (t *table) close() {
 	t.cancel()
 }
 
+func (t *table) bootstrap(dht *DHT, addrs []*net.UDPAddr) {
+	t.bootstrapAddrs = addrs
+	for _, addr := range addrs {
+		node := newNode(dht, data.RandID(), *addr)
+		t.add(node)
+	}
+}
+
 func (t *table) discovery() {
 	run := func() {
 		for _, node := range t.copyNodes(t.ipNodes) {
@@ -59,7 +69,10 @@ func (t *table) discovery() {
 		}
 	}
 	for {
-		if len(t.ipNodes) < t.max/3 {
+		if len(t.ipNodes) == 0 || len(t.idNodes) == 0 {
+			t.bootstrap(t.dht, t.bootstrapAddrs)
+			run()
+		} else if len(t.ipNodes) < t.max/3 {
 			run()
 		} else if len(t.idNodes) < t.max/3 {
 			run()
