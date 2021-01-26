@@ -26,6 +26,7 @@ type DHT struct {
 	tb     *table
 	tx     *txMgr
 	tk     *tokenMgr
+	bc     *broadcast
 	local  hashType
 
 	// runtime
@@ -39,6 +40,7 @@ func New(cfg *Config) (*DHT, error) {
 	dht := &DHT{
 		tx: newTXMgr(cfg.MaxTX),
 		tk: newTokenMgr(cfg.MaxToken),
+		bc: newBroadcast(cfg.MaxBroadcastCache, cfg.MaxBroadcastCount),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)

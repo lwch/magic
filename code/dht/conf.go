@@ -2,10 +2,12 @@ package dht
 
 // Config dht config
 type Config struct {
-	Listen   uint16 // Default: 6881
-	MaxNodes int    // Default: 10000
-	MaxTX    int    // Default: 30000
-	MaxToken int    // Default: 10000
+	Listen            uint16 // Default: 6881
+	MaxNodes          int    // Default: 10000
+	MaxTX             int    // Default: 30000
+	MaxToken          int    // Default: 10000
+	MaxBroadcastCache int    // Default: 10000
+	MaxBroadcastCount int    // default: 1000
 }
 
 // NewConfig create default config
@@ -27,5 +29,11 @@ func (cfg *Config) checkDefault() {
 	}
 	if cfg.MaxToken <= 0 {
 		cfg.MaxToken = 10000
+	}
+	if cfg.MaxBroadcastCache <= 0 {
+		cfg.MaxBroadcastCache = 10000
+	}
+	if cfg.MaxBroadcastCount <= 0 {
+		cfg.MaxBroadcastCount = 1000
 	}
 }

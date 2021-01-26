@@ -85,7 +85,11 @@ func (n *node) onGetPeers(buf []byte) {
 	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
 		return
 	}
+	if !n.dht.bc.allow(req.Data.Hash, len(nodes)) {
+		return
+	}
 	for _, node := range nodes {
 		node.sendGet(n.dht.listen, n.dht.local, req.Data.Hash)
 	}
+	n.dht.bc.broadcast(req.Data.Hash, len(nodes))
 }
