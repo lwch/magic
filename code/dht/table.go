@@ -83,8 +83,13 @@ func (t *table) discovery() {
 		} else if t.dht.tx.size() == 0 {
 			run()
 		}
-		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
-		time.Sleep(time.Second)
+		select {
+		case <-t.ctx.Done():
+			return
+		default:
+			logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
+			time.Sleep(time.Second)
+		}
 	}
 }
 
