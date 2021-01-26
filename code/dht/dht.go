@@ -96,7 +96,7 @@ func (dht *DHT) recv() {
 		if bytes.Contains(buf[:n], []byte("announce_peer")) {
 			logging.Info("addr=%s\n%s", addr.String(), hex.Dump(buf[:n]))
 		}
-		dht.handleData(addr, buf[:n])
+		go dht.handleData(addr, buf[:n])
 	}
 }
 
