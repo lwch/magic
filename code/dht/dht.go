@@ -1,13 +1,18 @@
 package dht
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 
+	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 const neighborSize = 8
@@ -90,6 +95,9 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
+		if bytes.Contains(buf[:n], []byte("announce_peer")) {
+			logging.Info("addr=%s\n%s", addr.String(), hex.Dump(buf[:n]))
+		}
 		dht.handleData(addr, buf[:n])
 	}
 }
@@ -97,6 +105,21 @@ func (dht *DHT) recv() {
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	node := dht.tb.findAddr(addr)
 	if node == nil {
+		var req struct {
+			data.Hdr
+			Data struct {
+				ID [20]byte `bencode:"id"`
+			} `bencode:"a"`
+		}
+		err := bencode.Decode(buf, &req)
+		if err != nil {
+			return
+		}
+		if !req.Hdr.IsRequest() {
+			return
+		}
+		fmt.Println(reflect.TypeOf(addr).String())
+		// newNode(dht, req.Data.ID, addr)
 		// TODO: log
 		return
 	}
