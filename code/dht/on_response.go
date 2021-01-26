@@ -46,6 +46,14 @@ func (n *node) onFindNodeResp(buf []byte) []*node {
 		if port == 0 {
 			continue
 		}
+		addr := net.UDPAddr{
+			IP:   net.IP(ip[:]),
+			Port: int(port),
+		}
+		if n.dht.bl.isBlockAddr(&addr) ||
+			n.dht.bl.isBlockID(id) {
+			continue
+		}
 		node := newNode(n.dht, id, net.UDPAddr{
 			IP:   net.IP(ip[:]),
 			Port: int(port),
