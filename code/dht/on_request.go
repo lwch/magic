@@ -83,6 +83,7 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
+	return
 	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
 		return
 	}

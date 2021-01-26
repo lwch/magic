@@ -31,6 +31,7 @@ func init() {
 
 func main() {
 	cfg := dht.NewConfig()
+	cfg.Listen = 6882
 	cfg.MaxNodes = 100000
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)

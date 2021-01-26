@@ -67,6 +67,7 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		return
 	}
 	if len(notfound.Response.Nodes) > 0 {
+		return
 		nodes := n.onFindNodeResp(buf)
 		if !n.dht.bc.allow(hash, len(nodes)) {
 			return
