@@ -119,6 +119,7 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		}
 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
 		dht.tb.addForce(node)
+		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
 	}
 	node.onRecv(buf)
 }
