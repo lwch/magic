@@ -100,18 +100,19 @@ func (t *table) keepalive() {
 }
 
 func (t *table) checkKeepAlive() {
-	for _, node := range t.copyNodes(t.ipNodes) {
-		if time.Since(node.updated).Seconds() >= 10 {
-			t.remove(node)
-			t.dht.bl.blockID(node.id)
+	check := func(list []node) {
+		for _, node := range list {
+			sec := time.Since(node.updated)
+			if sec >= 10 {
+				t.remove(node)
+				t.dht.bl.blockID(node.id)
+			} else if sec >= 5 {
+				node.sendPing(t.dht.listen, t.dht.local)
+			}
 		}
 	}
-	for _, node := range t.copyNodes(t.idNodes) {
-		if time.Since(node.updated).Seconds() >= 10 {
-			t.remove(node)
-			t.dht.bl.blockID(node.id)
-		}
-	}
+	check(t.copyNodes(t.ipNodes))
+	check(t.copyNodes(t.idNodes))
 }
 
 func (t *table) copyNodes(m map[string]node) []node {

@@ -47,6 +47,20 @@ func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
+func (n *node) sendPing(c *net.UDPConn, local hashType) {
+	buf, tx, err := data.PingReq(local)
+	if err != nil {
+		logging.Error("build get_peers packet failed" + n.errInfo(err))
+		return
+	}
+	_, err = c.WriteTo(buf, &n.addr)
+	if err != nil {
+		logging.Error("send get_peers packet failed" + n.errInfo(err))
+		return
+	}
+	n.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
+}
+
 func (n *node) sendGet(c *net.UDPConn, local, hash hashType) {
 	buf, tx, err := data.GetPeers(local, hash)
 	if err != nil {
@@ -108,6 +122,8 @@ func (n *node) handleResponse(buf []byte, tx string) {
 		return
 	}
 	switch txr.t {
+	case data.TypePing:
+		n.updated = time.Now()
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
 	case data.TypeGetPeers:
