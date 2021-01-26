@@ -3,6 +3,7 @@ package dht
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -92,4 +93,32 @@ func (n *node) onGetPeers(buf []byte) {
 		node.sendGet(n.dht.listen, n.dht.local, req.Data.Hash)
 	}
 	n.dht.bc.broadcast(req.Data.Hash, len(nodes))
+}
+
+func (n *node) onAnnouncePeer(buf []byte) {
+	var req data.AnnouncePeerRequest
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("decode announce_peer request failed" + n.errInfo(err))
+		return
+	}
+	port := n.addr.Port
+	if req.Data.Implied != 0 {
+		port = int(req.Data.Port)
+	}
+	addr := net.TCPAddr{
+		IP:   n.addr.IP,
+		Port: port,
+	}
+	logging.Info("announce_peer found: hash=%x, addr=%s", req.Data.Hash, addr.String())
+	data, err := data.AnnouncePeer(n.dht.local)
+	if err != nil {
+		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
+		return
+	}
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
+	if err != nil {
+		logging.Error("send announce_peer packet failed" + n.errInfo(err))
+		return
+	}
 }
