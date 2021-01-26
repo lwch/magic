@@ -43,6 +43,7 @@ func (t *table) close() {
 
 func (t *table) discovery() {
 	for {
+		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
 		if len(t.ipNodes) > 0 ||
 			len(t.idNodes) > 0 {
 			time.Sleep(time.Second)
@@ -62,7 +63,6 @@ func (t *table) discovery() {
 				return
 			}
 		}
-		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
 		time.Sleep(time.Second)
 	}
 }
