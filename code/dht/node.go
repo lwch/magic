@@ -84,7 +84,7 @@ func (n *node) handleRequest(buf []byte) {
 		} `bencode:"a"`
 	}
 	bencode.Decode(buf, &req)
-	if n.id.equal(req.Data.ID) {
+	if !n.id.equal(req.Data.ID) {
 		return
 	}
 	switch data.ParseReqType(buf) {
