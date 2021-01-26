@@ -37,6 +37,10 @@ func (mgr *txMgr) close() {
 	mgr.cancel()
 }
 
+func (mgr *txMgr) size() int {
+	return len(mgr.txs)
+}
+
 func (mgr *txMgr) clear() {
 	clear := func() {
 		nodes := make([]*tx, 0, len(mgr.txs))

@@ -42,13 +42,7 @@ func (t *table) close() {
 }
 
 func (t *table) discovery() {
-	for {
-		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
-		if len(t.ipNodes) > 0 ||
-			len(t.idNodes) > 0 {
-			time.Sleep(time.Second)
-			continue
-		}
+	run := func() {
 		for _, node := range t.copyNodes(t.ipNodes) {
 			select {
 			case t.chDiscovery <- &node:
@@ -63,6 +57,16 @@ func (t *table) discovery() {
 				return
 			}
 		}
+	}
+	for {
+		if len(t.ipNodes) == 0 {
+			run()
+		} else if len(t.idNodes) == 0 {
+			run()
+		} else if t.dht.tx.size() == 0 {
+			run()
+		}
+		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
 		time.Sleep(time.Second)
 	}
 }
