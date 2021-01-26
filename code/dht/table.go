@@ -13,8 +13,8 @@ import (
 type table struct {
 	sync.RWMutex
 	dht     *DHT
-	ipNodes map[string]*node
-	idNodes map[string]*node
+	ipNodes map[string]node
+	idNodes map[string]node
 	max     int
 
 	// runtime
@@ -25,8 +25,8 @@ type table struct {
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
 		dht:     dht,
-		ipNodes: make(map[string]*node, max),
-		idNodes: make(map[string]*node, max),
+		ipNodes: make(map[string]node, max),
+		idNodes: make(map[string]node, max),
 		max:     max,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
@@ -48,8 +48,8 @@ func (t *table) add(n *node) bool {
 		return false
 	}
 	t.Lock()
-	t.ipNodes[n.addr.String()] = n
-	t.idNodes[n.id.String()] = n
+	t.ipNodes[n.addr.String()] = *n
+	t.idNodes[n.id.String()] = *n
 	t.Unlock()
 	return true
 }
@@ -79,19 +79,17 @@ func (t *table) checkKeepAlive() {
 	}
 }
 
-func (t *table) copyNodes(m map[string]*node) []*node {
+func (t *table) copyNodes(m map[string]node) []node {
 	t.RLock()
 	defer t.RUnlock()
-	ret := make([]*node, 0, len(m))
+	ret := make([]node, 0, len(m))
 	for _, v := range m {
-		if v != nil {
-			ret = append(ret, v)
-		}
+		ret = append(ret, v)
 	}
 	return ret
 }
 
-func (t *table) remove(n *node) {
+func (t *table) remove(n node) {
 	n.close()
 	t.Lock()
 	defer t.Unlock()
@@ -102,17 +100,23 @@ func (t *table) remove(n *node) {
 func (t *table) findAddr(addr net.Addr) *node {
 	t.RLock()
 	defer t.RUnlock()
-	return t.ipNodes[addr.String()]
+	if node, ok := t.ipNodes[addr.String()]; ok {
+		return &node
+	}
+	return nil
 }
 
 func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
-	return t.idNodes[id.String()]
+	if node, ok := t.idNodes[id.String()]; ok {
+		return &node
+	}
+	return nil
 }
 
 func (t *table) onDiscovery(c *net.UDPConn) {
-	run := func(m map[string]*node) {
+	run := func(m map[string]node) {
 		left := t.max - len(m)
 		maxLimit := left / 8
 		if maxLimit <= 0 {
@@ -136,13 +140,13 @@ func (t *table) onDiscovery(c *net.UDPConn) {
 	logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
 }
 
-func (t *table) neighbor(id hashType, n int) []*node {
+func (t *table) neighbor(id hashType, n int) []node {
 	nodes := t.copyNodes(t.idNodes)
 	if len(nodes) < n {
 		return nil
 	}
 	// random select
-	ret := make([]*node, 0, n)
+	ret := make([]node, 0, n)
 	for i := 0; i < n; i++ {
 		ret = append(ret, nodes[rand.Intn(len(nodes))])
 	}
