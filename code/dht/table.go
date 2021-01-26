@@ -43,12 +43,14 @@ func (t *table) close() {
 	t.cancel()
 }
 
-func (t *table) bootstrap(dht *DHT, addrs []*net.UDPAddr) {
+func (t *table) bootstrap(dht *DHT, addrs []*net.UDPAddr) []*node {
 	t.bootstrapAddrs = addrs
+	ret := make([]*node, 0, len(addrs))
 	for _, addr := range addrs {
 		node := newNode(dht, data.RandID(), *addr)
-		t.add(node)
+		ret = append(ret, node)
 	}
+	return ret
 }
 
 func (t *table) discovery() {
@@ -70,7 +72,9 @@ func (t *table) discovery() {
 	}
 	for {
 		if len(t.ipNodes) == 0 || len(t.idNodes) == 0 {
-			t.bootstrap(t.dht, t.bootstrapAddrs)
+			for _, node := range t.bootstrap(t.dht, t.bootstrapAddrs) {
+				node.sendDiscovery(t.dht.listen, t.dht.local)
+			}
 			run()
 		} else if len(t.ipNodes) < t.max/3 {
 			run()
