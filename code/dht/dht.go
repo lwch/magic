@@ -98,9 +98,6 @@ func (dht *DHT) recv() {
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	node := dht.tb.findAddr(addr)
-	if node != nil && dht.bl.isBlockID(node.id) {
-		return
-	}
 	if node == nil {
 		var req struct {
 			data.Hdr
@@ -121,8 +118,8 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
 		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
 		dht.tb.add(node)
+	} else if dht.bl.isBlockID(node.id) {
+		return
 	}
-	data := make([]byte, len(buf))
-	copy(data, buf)
-	go node.onRecv(data)
+	node.onRecv(buf)
 }
