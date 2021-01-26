@@ -2,6 +2,7 @@ package dht
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"net"
 	"time"
@@ -26,7 +27,6 @@ type DHT struct {
 	tx     *txMgr
 	tk     *tokenMgr
 	local  hashType
-	find   hashType
 
 	// runtime
 	ctx    context.Context
@@ -37,11 +37,10 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx:    newTXMgr(cfg.MaxTX),
-		tk:    newTokenMgr(cfg.MaxToken),
-		local: data.RandID(),
-		find:  data.RandID(),
+		tx: newTXMgr(cfg.MaxTX),
+		tk: newTokenMgr(cfg.MaxToken),
 	}
+	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
