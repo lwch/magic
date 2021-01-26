@@ -55,6 +55,22 @@ func (t *table) add(n *node) bool {
 	return true
 }
 
+func (t *table) addForce(n *node) {
+	add := func() {
+		t.Lock()
+		t.ipNodes[n.addr.String()] = n
+		t.idNodes[n.id.String()] = n
+		t.Unlock()
+	}
+	for i := 0; i < 5; i++ {
+		t.checkKeepAlive()
+		if !t.isFull() {
+			add()
+			return
+		}
+	}
+}
+
 func (t *table) keepalive() {
 	tk := time.NewTicker(time.Second)
 	for {

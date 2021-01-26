@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"reflect"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -118,10 +117,8 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		if !req.Hdr.IsRequest() {
 			return
 		}
-		fmt.Println(reflect.TypeOf(addr).String())
-		// newNode(dht, req.Data.ID, addr)
-		// TODO: log
-		return
+		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
+		dht.tb.addForce(node)
 	}
 	node.onRecv(buf)
 }
