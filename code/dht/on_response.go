@@ -27,6 +27,7 @@ func (n *node) onFindNodeResp(buf []byte) []*node {
 	nodes := make([]*node, 0, len(resp.Response.Nodes)%26)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		if n.dht.tb.isFull() {
+			logging.Debug("is full")
 			return nil
 		}
 		var id hashType
@@ -70,6 +71,12 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		for _, node := range nodes {
 			node.sendGet(n.dht.listen, n.dht.local, hash)
 		}
+		return
+	}
+	var found data.GetPeersResponse
+	err = bencode.Decode(buf, &found)
+	if err != nil {
+		logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
 		return
 	}
 	logging.Info("onGetPeersResp: %s", hash.String())
