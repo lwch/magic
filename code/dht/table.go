@@ -43,6 +43,11 @@ func (t *table) close() {
 
 func (t *table) discovery() {
 	for {
+		if len(t.ipNodes) > 0 ||
+			len(t.idNodes) > 0 {
+			time.Sleep(time.Second)
+			continue
+		}
 		for _, node := range t.copyNodes(t.ipNodes) {
 			select {
 			case t.chDiscovery <- &node:

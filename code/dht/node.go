@@ -1,8 +1,8 @@
 package dht
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 
