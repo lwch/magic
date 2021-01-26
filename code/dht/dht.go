@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -77,15 +76,7 @@ func (dht *DHT) Close() {
 // Discovery discovery nodes
 func (dht *DHT) Discovery(addrs []*net.UDPAddr) {
 	dht.bootstrap(addrs)
-	tk := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-tk.C:
-			dht.tb.onDiscovery(dht.listen)
-		case <-dht.ctx.Done():
-			return
-		}
-	}
+	dht.tb.discovery()
 }
 
 func (dht *DHT) bootstrap(addrs []*net.UDPAddr) {

@@ -12,10 +12,11 @@ import (
 
 type table struct {
 	sync.RWMutex
-	dht     *DHT
-	ipNodes map[string]node
-	idNodes map[string]node
-	max     int
+	dht         *DHT
+	ipNodes     map[string]node
+	idNodes     map[string]node
+	max         int
+	chDiscovery chan *node
 
 	// runtime
 	ctx    context.Context
@@ -24,18 +25,41 @@ type table struct {
 
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
-		dht:     dht,
-		ipNodes: make(map[string]node, max),
-		idNodes: make(map[string]node, max),
-		max:     max,
+		dht:         dht,
+		ipNodes:     make(map[string]node, max),
+		idNodes:     make(map[string]node, max),
+		max:         max,
+		chDiscovery: make(chan *node),
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go tb.keepalive()
+	go tb.loopDiscovery()
 	return tb
 }
 
 func (t *table) close() {
 	t.cancel()
+}
+
+func (t *table) discovery() {
+	for {
+		for _, node := range t.copyNodes(t.ipNodes) {
+			select {
+			case t.chDiscovery <- &node:
+			case <-t.ctx.Done():
+				return
+			}
+		}
+		for _, node := range t.copyNodes(t.idNodes) {
+			select {
+			case t.chDiscovery <- &node:
+			case <-t.ctx.Done():
+				return
+			}
+		}
+		logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
+		time.Sleep(time.Second)
+	}
 }
 
 func (t *table) isFull() bool {
@@ -115,29 +139,16 @@ func (t *table) findID(id hashType) *node {
 	return nil
 }
 
-func (t *table) onDiscovery(c *net.UDPConn) {
-	run := func(m map[string]node) {
-		left := t.max - len(m)
-		maxLimit := left / 8
-		if maxLimit <= 0 {
+func (t *table) loopDiscovery() {
+	for {
+		var n *node
+		select {
+		case n = <-t.chDiscovery:
+		case <-t.ctx.Done():
 			return
 		}
-		nodes := t.copyNodes(m)
-		if maxLimit > len(nodes) {
-			maxLimit = len(nodes)
-		} else {
-			rand.Shuffle(len(nodes), func(i, j int) {
-				nodes[i], nodes[j] = nodes[j], nodes[i]
-			})
-			nodes = nodes[:maxLimit]
-		}
-		for _, node := range nodes {
-			node.sendDiscovery(c, t.dht.local)
-		}
+		n.sendDiscovery(t.dht.listen, t.dht.local)
 	}
-	run(t.ipNodes)
-	run(t.idNodes)
-	logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
 }
 
 func (t *table) neighbor(id hashType, n int) []node {
