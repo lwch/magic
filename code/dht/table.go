@@ -103,11 +103,13 @@ func (t *table) checkKeepAlive() {
 	for _, node := range t.copyNodes(t.ipNodes) {
 		if time.Since(node.updated).Seconds() >= 10 {
 			t.remove(node)
+			t.dht.bl.blockID(node.id)
 		}
 	}
 	for _, node := range t.copyNodes(t.idNodes) {
 		if time.Since(node.updated).Seconds() >= 10 {
 			t.remove(node)
+			t.dht.bl.blockID(node.id)
 		}
 	}
 }
