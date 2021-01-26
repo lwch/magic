@@ -50,10 +50,10 @@ func (n *node) onFindNodeResp(buf []byte) []*node {
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		}
-		if n.dht.bl.isBlockAddr(&addr) ||
-			n.dht.bl.isBlockID(id) {
-			continue
-		}
+		// if n.dht.bl.isBlockAddr(&addr) ||
+		// 	n.dht.bl.isBlockID(id) {
+		// 	continue
+		// }
 		node := newNode(n.dht, id, addr)
 		n.dht.tb.add(node)
 		nodes = append(nodes, node)

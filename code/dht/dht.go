@@ -38,8 +38,8 @@ type DHT struct {
 	tb     *table
 	tx     *txMgr
 	tk     *tokenMgr
-	bl     *blacklist
-	local  hashType
+	// bl     *blacklist
+	local hashType
 
 	// runtime
 	ctx    context.Context
@@ -52,7 +52,7 @@ func New(cfg *Config) (*DHT, error) {
 	dht := &DHT{
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
-		bl: newBlackList(),
+		// bl: newBlackList(),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -89,9 +89,9 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
-		if dht.bl.isBlockAddr(addr) {
-			continue
-		}
+		// if dht.bl.isBlockAddr(addr) {
+		// 	continue
+		// }
 		dht.handleData(addr, buf[:n])
 	}
 }
@@ -112,14 +112,14 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		if !req.Hdr.IsRequest() {
 			return
 		}
-		if dht.bl.isBlockID(req.Data.ID) {
-			return
-		}
+		// if dht.bl.isBlockID(req.Data.ID) {
+		// 	return
+		// }
 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
 		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
 		dht.tb.add(node)
-	} else if dht.bl.isBlockID(node.id) {
-		return
+		// } else if dht.bl.isBlockID(node.id) {
+		// 	return
 	}
 	node.onRecv(buf)
 }

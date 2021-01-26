@@ -122,7 +122,7 @@ func (t *table) checkKeepAlive() {
 			sec := time.Since(node.updated)
 			if sec >= 10 {
 				t.remove(node)
-				t.dht.bl.blockID(node.id)
+				// t.dht.bl.blockID(node.id)
 			} else if sec >= 5 {
 				node.sendPing(t.dht.listen, t.dht.local)
 			}
