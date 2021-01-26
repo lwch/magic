@@ -103,7 +103,7 @@ func (dht *DHT) recv() {
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	node := dht.tb.findAddr(addr)
-	if dht.bl.isBlockID(node.id) {
+	if node != nil && dht.bl.isBlockID(node.id) {
 		return
 	}
 	if node == nil {
@@ -118,6 +118,9 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 			return
 		}
 		if !req.Hdr.IsRequest() {
+			return
+		}
+		if dht.bl.isBlockID(req.Data.ID) {
 			return
 		}
 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
