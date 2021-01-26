@@ -87,6 +87,7 @@ func (n *node) handleRequest(buf []byte) {
 	if !n.id.equal(req.Data.ID) {
 		n.dht.bl.blockAddr(&n.addr)
 		n.dht.bl.blockID(n.id)
+		n.dht.tb.remove(*n)
 		return
 	}
 	switch data.ParseReqType(buf) {
