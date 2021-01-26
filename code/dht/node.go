@@ -33,7 +33,7 @@ func (n *node) close() {
 func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	// var next [20]byte
 	// rand.Read(next[:])
-	pkt, tx, err := data.FindReq(id, data.RandID())
+	pkt, tx, err := data.FindReq(id, n.dht.find)
 	if err != nil {
 		logging.Error("build find_node packet failed" + n.errInfo(err))
 		return

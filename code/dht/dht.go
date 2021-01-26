@@ -26,6 +26,7 @@ type DHT struct {
 	tx     *txMgr
 	tk     *tokenMgr
 	local  hashType
+	find   hashType
 
 	// runtime
 	ctx    context.Context
@@ -39,6 +40,7 @@ func New(cfg *Config) (*DHT, error) {
 		tx:    newTXMgr(cfg.MaxTX),
 		tk:    newTokenMgr(cfg.MaxToken),
 		local: data.RandID(),
+		find:  data.RandID(),
 	}
 	dht.tb = newTable(dht, cfg.MaxNodes)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
