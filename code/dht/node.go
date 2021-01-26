@@ -78,6 +78,15 @@ func (n *node) onRecv(buf []byte) {
 }
 
 func (n *node) handleRequest(buf []byte) {
+	var req struct {
+		Data struct {
+			ID [20]byte `bencode:"id"`
+		} `bencode:"a"`
+	}
+	bencode.Decode(buf, &req)
+	if n.id.equal(req.Data.ID) {
+		return
+	}
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
 		n.onPing()

@@ -24,6 +24,16 @@ func (hash hashType) String() string {
 	return fmt.Sprintf("%x", [20]byte(hash))
 }
 
+func (hash hashType) raw() [20]byte {
+	return [20]byte(hash)
+}
+
+func (hash hashType) equal(h hashType) bool {
+	a := hash.raw()
+	b := h.raw()
+	return bytes.Equal(a[:], b[:])
+}
+
 // DHT dht manager
 type DHT struct {
 	listen *net.UDPConn
