@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net"
 
@@ -93,10 +92,7 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
-		if bytes.Contains(buf[:n], []byte("announce_peer")) {
-			logging.Info("addr=%s\n%s", addr.String(), hex.Dump(buf[:n]))
-		}
-		go dht.handleData(addr, buf[:n])
+		dht.handleData(addr, buf[:n])
 	}
 }
 
@@ -120,5 +116,7 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
 		dht.tb.add(node)
 	}
-	node.onRecv(buf)
+	data := make([]byte, len(buf))
+	copy(data, buf)
+	go node.onRecv(data)
 }
