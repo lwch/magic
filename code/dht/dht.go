@@ -38,6 +38,7 @@ type DHT struct {
 	tb     *table
 	tx     *txMgr
 	tk     *tokenMgr
+	bl     *blacklist
 	local  hashType
 
 	// runtime
@@ -51,6 +52,7 @@ func New(cfg *Config) (*DHT, error) {
 	dht := &DHT{
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
+		bl: newBlackList(),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -92,12 +94,18 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
+		if dht.bl.isBlockAddr(addr) {
+			continue
+		}
 		dht.handleData(addr, buf[:n])
 	}
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	node := dht.tb.findAddr(addr)
+	if dht.bl.isBlockID(node.id) {
+		return
+	}
 	if node == nil {
 		var req struct {
 			data.Hdr

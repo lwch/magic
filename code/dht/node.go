@@ -85,6 +85,8 @@ func (n *node) handleRequest(buf []byte) {
 	}
 	bencode.Decode(buf, &req)
 	if !n.id.equal(req.Data.ID) {
+		n.dht.bl.blockAddr(&n.addr)
+		n.dht.bl.blockID(n.id)
 		return
 	}
 	switch data.ParseReqType(buf) {
