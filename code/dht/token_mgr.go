@@ -31,6 +31,15 @@ func (mgr *tokenMgr) new(hash, from hashType) string {
 	return tk
 }
 
+func (mgr *tokenMgr) add(tk string, hash, from hashType) {
+	mgr.tokens[mgr.idx%len(mgr.tokens)] = token{
+		tk:   tk,
+		from: from,
+		hash: hash,
+	}
+	mgr.idx++
+}
+
 func (mgr *tokenMgr) find(tk string) *token {
 	size := mgr.idx
 	if mgr.idx >= len(mgr.tokens) {

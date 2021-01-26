@@ -79,5 +79,22 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
 		return
 	}
-	logging.Info("onGetPeersResp: %s", hash.String())
+	n.dht.tk.add(found.Response.Token, hash, n.id)
+	for _, peer := range found.Response.Values {
+		if len(peer) != 6 {
+			continue
+		}
+		var ip [4]byte
+		err = binary.Read(strings.NewReader(peer), binary.BigEndian, &ip)
+		if err != nil {
+			logging.Error("read ip failed" + n.errInfo(err))
+			continue
+		}
+		port := binary.BigEndian.Uint16([]byte(peer[4:]))
+		addr := net.TCPAddr{
+			IP:   net.IP(ip[:]),
+			Port: int(port),
+		}
+		logging.Info("get_peers found: hash=%s, addr=%s", hash.String(), addr.String())
+	}
 }
