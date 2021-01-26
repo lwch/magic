@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/rand"
 	"net"
-	"sort"
 	"sync"
 	"time"
 
@@ -158,16 +157,22 @@ func (t *table) neighbor(id hashType, n int) []*node {
 	if len(nodes) < n {
 		return nil
 	}
-	sort.Slice(nodes, func(i, j int) bool {
-		for x := 0; x < 20; x++ {
-			a := id[x] ^ nodes[i].id[x]
-			b := id[x] ^ nodes[j].id[x]
-			if a == b {
-				continue
-			}
-			return a < b
-		}
-		return false
-	})
-	return nodes[:n]
+	// random select
+	ret := make([]*node, 0, n)
+	for i := 0; i < n; i++ {
+		ret = append(ret, nodes[rand.Intn(len(nodes))])
+	}
+	return ret
+	// sort.Slice(nodes, func(i, j int) bool {
+	// 	for x := 0; x < 20; x++ {
+	// 		a := id[x] ^ nodes[i].id[x]
+	// 		b := id[x] ^ nodes[j].id[x]
+	// 		if a == b {
+	// 			continue
+	// 		}
+	// 		return a < b
+	// 	}
+	// 	return false
+	// })
+	// return nodes[:n]
 }
