@@ -59,9 +59,9 @@ func (t *table) discovery() {
 		}
 	}
 	for {
-		if len(t.ipNodes) == 0 {
+		if len(t.ipNodes) < t.max/3 {
 			run()
-		} else if len(t.idNodes) == 0 {
+		} else if len(t.idNodes) < t.max/3 {
 			run()
 		} else if t.dht.tx.size() == 0 {
 			run()
