@@ -52,7 +52,7 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx: newTXMgr(cfg.MaxTX),
+		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
 		bc: newBroadcast(cfg.MaxBroadcastCache, cfg.MaxBroadcastCount),
 	}

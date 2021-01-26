@@ -68,15 +68,6 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 	}
 	if len(notfound.Response.Nodes) > 0 {
 		return
-		nodes := n.onFindNodeResp(buf)
-		if !n.dht.bc.allow(hash, len(nodes)) {
-			return
-		}
-		for _, node := range nodes {
-			node.sendGet(n.dht.listen, n.dht.local, hash)
-		}
-		n.dht.bc.broadcast(hash, len(nodes))
-		return
 	}
 	var found data.GetPeersResponse
 	err = bencode.Decode(buf, &found)

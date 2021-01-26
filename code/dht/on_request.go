@@ -83,17 +83,6 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
-	return
-	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
-		return
-	}
-	if !n.dht.bc.allow(req.Data.Hash, len(nodes)) {
-		return
-	}
-	for _, node := range nodes {
-		node.sendGet(n.dht.listen, n.dht.local, req.Data.Hash)
-	}
-	n.dht.bc.broadcast(req.Data.Hash, len(nodes))
 }
 
 func (n *node) onAnnouncePeer(buf []byte) {
