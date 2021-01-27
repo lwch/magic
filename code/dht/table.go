@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/lwch/hashmap"
@@ -78,7 +77,7 @@ func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time,
 	target.k = key.(string)
 	target.n = value.(*node)
 	if !update {
-		atomic.AddInt64(&s.size, 1)
+		s.size++
 	}
 	return true
 }
@@ -96,7 +95,7 @@ func (s *tableSlice) Reset(idx uint64) {
 	node := &s.data[int(idx)%len(s.data)]
 	node.k = ""
 	node.n = nil
-	atomic.AddInt64(&s.size, -1)
+	s.size--
 }
 
 func (s *tableSlice) Timeout(idx uint64) bool {
@@ -204,12 +203,14 @@ func (t *table) keepalive() {
 }
 
 func (t *table) checkKeepAlive() {
+	removed := make(map[*node]bool)
 	check := func(list []*node) {
 		for _, node := range list {
 			sec := time.Since(node.updated).Seconds()
 			if sec >= 10 {
-				if !node.isBootstrap {
+				if !node.isBootstrap && !removed[node] {
 					t.remove(node)
+					removed[node] = true
 					// t.dht.bl.blockID(node.id)
 				}
 			} else if sec >= 5 {
