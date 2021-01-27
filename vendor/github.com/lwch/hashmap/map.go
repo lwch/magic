@@ -47,11 +47,7 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 		}
 		idx = (idx + magic) % mp.data.Cap()
 	}
-	if h-mp.data.Cap() > 100 {
-		mp.data.Resize(h + 100)
-	} else {
-		mp.data.Resize(mp.data.Cap() << 1)
-	}
+	mp.data.Resize(mp.data.Cap() << 1)
 	mp.Set(key, value)
 }
 
