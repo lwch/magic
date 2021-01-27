@@ -134,6 +134,8 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 			node.pong = time.Now()
 			dht.tb.add(node)
 			return
+		default:
+			return
 		}
 	}
 	node.onRecv(buf)
