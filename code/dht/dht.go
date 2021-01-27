@@ -55,7 +55,7 @@ func New(cfg *Config) (*DHT, error) {
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
 		// bl: newBlackList(),
-		init: newInitQueue(cfg.MaxNodes * 2),
+		init: newInitQueue(),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -133,6 +133,7 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 			node.updated = time.Now()
 			node.pong = time.Now()
 			dht.tb.add(node)
+			dht.init.unset(hdr.Transaction)
 			return
 		default:
 			return

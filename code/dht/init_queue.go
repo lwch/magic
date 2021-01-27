@@ -1,52 +1,30 @@
 package dht
 
-type initData struct {
-	tx string
-	n  *node
-}
+import "sync"
 
 type initQueue struct {
-	data []initData
-	idx  int
+	sync.RWMutex
+	data map[string]*node
 }
 
-func newInitQueue(max int) *initQueue {
-	return &initQueue{data: make([]initData, max)}
+func newInitQueue() *initQueue {
+	return &initQueue{data: make(map[string]*node)}
 }
 
 func (q *initQueue) push(tx string, n *node) {
-	q.data[q.idx%len(q.data)] = initData{
-		tx: tx,
-		n:  n,
-	}
-	q.idx++
+	q.Lock()
+	defer q.Unlock()
+	q.data[tx] = n
 }
 
 func (q *initQueue) find(tx string) *node {
-	n := len(q.data)
-	if q.idx < len(q.data) {
-		n = q.idx
-	}
-	for i := 0; i < n; i++ {
-		node := q.data[i]
-		if node.tx == tx {
-			return node.n
-		}
-	}
-	return nil
+	q.RLock()
+	defer q.RUnlock()
+	return q.data[tx]
 }
 
 func (q *initQueue) unset(tx string) {
-	n := len(q.data)
-	if q.idx < len(q.data) {
-		n = q.idx
-	}
-	for i := 0; i < n; i++ {
-		node := &q.data[i]
-		if node.tx == tx {
-			node.tx = ""
-			node.n = nil
-			return
-		}
-	}
+	q.Lock()
+	defer q.Unlock()
+	delete(q.data, tx)
 }
