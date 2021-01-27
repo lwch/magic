@@ -33,6 +33,11 @@ func (hash hashType) equal(h hashType) bool {
 	return bytes.Equal(a[:], b[:])
 }
 
+type pkt struct {
+	data []byte
+	addr net.Addr
+}
+
 // DHT dht manager
 type DHT struct {
 	listen *net.UDPConn
@@ -41,7 +46,8 @@ type DHT struct {
 	tk     *tokenMgr
 	init   *initQueue
 	// bl     *blacklist
-	local hashType
+	local  hashType
+	chRead chan pkt
 
 	// runtime
 	ctx    context.Context
@@ -55,7 +61,8 @@ func New(cfg *Config) (*DHT, error) {
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
 		// bl: newBlackList(),
-		init: newInitQueue(cfg.MaxNodes << 1),
+		init:   newInitQueue(cfg.MaxNodes << 1),
+		chRead: make(chan pkt, 100),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -65,6 +72,9 @@ func New(cfg *Config) (*DHT, error) {
 		Port: int(cfg.Listen),
 	})
 	go dht.recv()
+	for i := 0; i < 30; i++ {
+		go dht.handler()
+	}
 	return dht, err
 }
 
@@ -94,10 +104,26 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
+		data := make([]byte, n)
+		copy(data, buf[:n])
+		select {
+		case dht.chRead <- pkt{
+			data: data,
+			addr: addr,
+		}:
+		default:
+		}
 		// if dht.bl.isBlockAddr(addr) {
 		// 	continue
 		// }
-		dht.handleData(addr, buf[:n])
+		// dht.handleData(addr, buf[:n])
+	}
+}
+
+func (dht *DHT) handler() {
+	for {
+		pkt := <-dht.chRead
+		dht.handleData(pkt.addr, pkt.data)
 	}
 }
 
