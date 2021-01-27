@@ -55,7 +55,7 @@ func New(cfg *Config) (*DHT, error) {
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
 		// bl: newBlackList(),
-		init: newInitQueue(),
+		init: newInitQueue(cfg.MaxNodes << 1),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
