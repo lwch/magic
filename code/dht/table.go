@@ -102,6 +102,19 @@ func (s *tableSlice) Timeout(idx uint64) bool {
 	return false
 }
 
+func (s *tableSlice) nodes() []*node {
+	s.RLock()
+	defer s.RUnlock()
+	ret := make([]*node, 0, int(s.size))
+	for i := uint64(0); i < s.Cap(); i++ {
+		node := s.data[i]
+		if len(node.k) > 0 {
+			ret = append(ret, node.n)
+		}
+	}
+	return ret
+}
+
 type table struct {
 	dht            *DHT
 	ipNodes        *hashmap.Map // addr => node
@@ -223,14 +236,7 @@ func (t *table) checkKeepAlive() {
 }
 
 func (t *table) copyNodes(m *hashmap.Map) []*node {
-	slice := m.Data().(*tableSlice)
-	ret := make([]*node, 0, m.Size())
-	for _, node := range slice.data {
-		if len(node.k) > 0 {
-			ret = append(ret, node.n)
-		}
-	}
-	return ret
+	return m.Data().(*tableSlice).nodes()
 }
 
 func (t *table) remove(n *node) {
