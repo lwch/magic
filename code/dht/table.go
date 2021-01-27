@@ -19,7 +19,7 @@ type tableNode struct {
 }
 
 type tableSlice struct {
-	sync.RWMutex
+	sync.Mutex
 	data []tableNode
 	size int64
 }
@@ -41,8 +41,6 @@ func (s *tableSlice) Size() uint64 {
 }
 
 func (s *tableSlice) Cap() uint64 {
-	s.RLock()
-	defer s.RUnlock()
 	return uint64(len(s.data))
 }
 
@@ -54,22 +52,16 @@ func (s *tableSlice) Hash(key interface{}) uint64 {
 }
 
 func (s *tableSlice) KeyEqual(idx uint64, key interface{}) bool {
-	s.RLock()
-	defer s.RUnlock()
 	node := s.data[int(idx)%len(s.data)]
 	return node.k == key.(string)
 }
 
 func (s *tableSlice) Empty(idx uint64) bool {
-	s.RLock()
-	defer s.RUnlock()
 	node := s.data[int(idx)%len(s.data)]
 	return len(node.k) == 0 && node.n == nil
 }
 
 func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) bool {
-	s.Lock()
-	defer s.Unlock()
 	target := &s.data[int(idx)%len(s.data)]
 	if len(target.k) > 0 || target.n != nil {
 		return false
@@ -83,15 +75,11 @@ func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time,
 }
 
 func (s *tableSlice) Get(idx uint64) interface{} {
-	s.RLock()
-	defer s.RUnlock()
 	node := s.data[int(idx)%len(s.data)]
 	return node.n
 }
 
 func (s *tableSlice) Reset(idx uint64) {
-	s.Lock()
-	defer s.Unlock()
 	node := &s.data[int(idx)%len(s.data)]
 	node.k = ""
 	node.n = nil
@@ -103,8 +91,6 @@ func (s *tableSlice) Timeout(idx uint64) bool {
 }
 
 func (s *tableSlice) nodes() []*node {
-	s.RLock()
-	defer s.RUnlock()
 	ret := make([]*node, 0, int(s.size))
 	for i := uint64(0); i < s.Cap(); i++ {
 		node := s.data[i]
