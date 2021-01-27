@@ -38,12 +38,14 @@ func (mp *Map) Set(key interface{}, value interface{}) {
 	idx := h % mp.data.Cap()
 	for i := 0; i < mp.retry+1; i++ {
 		if mp.data.Empty(idx) {
-			mp.data.Set(idx, key, value, time.Now().Add(mp.timeout), false)
-			return
+			if mp.data.Set(idx, key, value, time.Now().Add(mp.timeout), false) {
+				return
+			}
 		}
 		if mp.data.KeyEqual(idx, key) {
-			mp.data.Set(idx, key, value, time.Now().Add(mp.timeout), true)
-			return
+			if mp.data.Set(idx, key, value, time.Now().Add(mp.timeout), true) {
+				return
+			}
 		}
 		idx = (idx + magic) % mp.data.Cap()
 	}

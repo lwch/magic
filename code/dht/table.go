@@ -68,15 +68,19 @@ func (s *tableSlice) Empty(idx uint64) bool {
 	return len(node.k) == 0 && node.n == nil
 }
 
-func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) {
+func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) bool {
 	s.Lock()
 	defer s.Unlock()
 	target := &s.data[int(idx)%len(s.data)]
+	if len(target.k) > 0 || target.n != nil {
+		return false
+	}
 	target.k = key.(string)
 	target.n = value.(*node)
 	if !update {
 		atomic.AddInt64(&s.size, 1)
 	}
+	return true
 }
 
 func (s *tableSlice) Get(idx uint64) interface{} {

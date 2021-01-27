@@ -59,7 +59,7 @@ func (s *queueSlice) Empty(idx uint64) bool {
 	return len(node.tx) == 0
 }
 
-func (s *queueSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) {
+func (s *queueSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) bool {
 	target := &s.data[int(idx)%len(s.data)]
 	target.tx = key.(string)
 	target.n = value.(*node)
@@ -67,6 +67,7 @@ func (s *queueSlice) Set(idx uint64, key, value interface{}, deadtime time.Time,
 	if !update {
 		atomic.AddInt64(&s.size, 1)
 	}
+	return true
 }
 
 func (s *queueSlice) Get(idx uint64) interface{} {
