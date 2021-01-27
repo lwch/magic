@@ -109,16 +109,19 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	}
 	node := dht.tb.findAddr(addr)
 	if node == nil {
-		var req struct {
-			Data struct {
-				ID [20]byte `bencode:"id"`
-			} `bencode:"a"`
-		}
 		switch {
 		case hdr.IsRequest():
+			var req struct {
+				Data struct {
+					ID [20]byte `bencode:"id"`
+				} `bencode:"a"`
+			}
 			// if dht.bl.isBlockID(req.Data.ID) {
 			// 	return
 			// }
+			if bytes.Equal(req.Data.ID[:], emptyHash[:]) {
+				return
+			}
 			node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
 			logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
 			dht.tb.add(node)
