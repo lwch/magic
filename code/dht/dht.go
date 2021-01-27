@@ -134,7 +134,10 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 				return
 			}
 			node.updated = time.Now()
-			node.pong = time.Now()
+			select {
+			case node.chPong <- struct{}{}:
+			default:
+			}
 			return
 		default:
 			return

@@ -58,12 +58,11 @@ func (n *node) onFindNodeResp(buf []byte) {
 			tx := node.sendPing(n.dht.listen, n.dht.local)
 			n.dht.init.push(tx, node)
 			defer n.dht.init.unset(tx)
-			for i := 0; i < 10; i++ {
-				time.Sleep(time.Second)
-				if time.Since(node.pong).Seconds() < 10 {
-					n.dht.tb.add(node)
-					return
-				}
+			select {
+			case <-node.chPong:
+				n.dht.tb.add(node)
+			case <-time.After(10 * time.Second):
+				return
 			}
 		}(newNode(n.dht, id, addr))
 	}

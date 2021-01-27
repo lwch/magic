@@ -16,7 +16,7 @@ type node struct {
 	id          hashType
 	addr        net.UDPAddr
 	updated     time.Time
-	pong        time.Time
+	chPong      chan struct{}
 	isBootstrap bool
 }
 
@@ -137,7 +137,10 @@ func (n *node) handleResponse(buf []byte, tx string) {
 	switch txr.t {
 	case data.TypePing:
 		n.updated = time.Now()
-		n.pong = time.Now()
+		select {
+		case n.chPong <- struct{}{}:
+		default:
+		}
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
 	case data.TypeGetPeers:
