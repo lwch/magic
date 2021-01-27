@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -56,6 +57,13 @@ func (n *node) onFindNodeResp(buf []byte) {
 		go func(node *node) {
 			tx := node.sendPing(n.dht.listen, n.dht.local)
 			n.dht.init.push(tx, node)
+			defer n.dht.init.unset(tx)
+			for i := 0; i < 10; i++ {
+				if time.Since(node.pong).Seconds() < 10 {
+					n.dht.tb.add(node)
+					return
+				}
+			}
 		}(newNode(n.dht, id, addr))
 	}
 }

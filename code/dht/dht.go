@@ -135,8 +135,6 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 			}
 			node.updated = time.Now()
 			node.pong = time.Now()
-			dht.tb.add(node)
-			dht.init.unset(hdr.Transaction)
 			return
 		default:
 			return
