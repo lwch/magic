@@ -57,10 +57,9 @@ func (mgr *txMgr) clear() {
 		}
 		mgr.Unlock()
 	}
-	t := time.NewTicker(10 * time.Second)
 	for {
 		select {
-		case <-t.C:
+		case <-time.After(10 * time.Second):
 			clear()
 		case <-mgr.ctx.Done():
 			return

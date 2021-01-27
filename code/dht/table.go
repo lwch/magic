@@ -204,10 +204,9 @@ func (t *table) add(n *node) bool {
 }
 
 func (t *table) keepalive() {
-	tk := time.NewTicker(time.Second)
 	for {
 		select {
-		case <-tk.C:
+		case <-time.After(time.Second):
 			t.checkKeepAlive()
 		case <-t.ctx.Done():
 			return
