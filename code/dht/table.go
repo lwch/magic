@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
@@ -43,16 +42,6 @@ func (t *table) close() {
 	t.cancel()
 }
 
-func (t *table) bootstrap(dht *DHT, addrs []*net.UDPAddr) []*node {
-	t.bootstrapAddrs = addrs
-	ret := make([]*node, 0, len(addrs))
-	for _, addr := range addrs {
-		node := newNode(dht, data.RandID(), *addr)
-		ret = append(ret, node)
-	}
-	return ret
-}
-
 func (t *table) discovery() {
 	run := func() {
 		for _, node := range t.copyNodes(t.ipNodes) {
@@ -71,12 +60,7 @@ func (t *table) discovery() {
 		}
 	}
 	for {
-		if len(t.ipNodes) == 0 || len(t.idNodes) == 0 {
-			for _, node := range t.bootstrap(t.dht, t.bootstrapAddrs) {
-				node.sendDiscovery(t.dht.listen, t.dht.local)
-			}
-			run()
-		} else if len(t.ipNodes) < t.max/3 {
+		if len(t.ipNodes) < t.max/3 {
 			run()
 		} else if len(t.idNodes) < t.max/3 {
 			run()
@@ -126,8 +110,10 @@ func (t *table) checkKeepAlive() {
 		for _, node := range list {
 			sec := time.Since(node.updated)
 			if sec >= 10 {
-				t.remove(node)
-				// t.dht.bl.blockID(node.id)
+				if !node.isBootstrap {
+					t.remove(node)
+					// t.dht.bl.blockID(node.id)
+				}
 			} else if sec >= 5 {
 				node.sendPing(t.dht.listen, t.dht.local)
 			}

@@ -12,10 +12,11 @@ import (
 )
 
 type node struct {
-	dht     *DHT
-	id      hashType
-	addr    net.UDPAddr
-	updated time.Time
+	dht         *DHT
+	id          hashType
+	addr        net.UDPAddr
+	updated     time.Time
+	isBootstrap bool
 }
 
 func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
@@ -24,6 +25,16 @@ func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
 		id:      id,
 		addr:    addr,
 		updated: time.Now(),
+	}
+}
+
+func newBootstrapNode(dht *DHT, addr net.UDPAddr) *node {
+	return &node{
+		dht:         dht,
+		id:          data.RandID(),
+		addr:        addr,
+		updated:     time.Now(),
+		isBootstrap: true,
 	}
 }
 
