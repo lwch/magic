@@ -108,7 +108,7 @@ func (t *table) keepalive() {
 func (t *table) checkKeepAlive() {
 	check := func(list []*node) {
 		for _, node := range list {
-			sec := time.Since(node.updated)
+			sec := time.Since(node.updated).Seconds()
 			if sec >= 10 {
 				if !node.isBootstrap {
 					t.remove(node)
