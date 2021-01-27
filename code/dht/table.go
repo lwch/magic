@@ -44,17 +44,25 @@ func (t *table) close() {
 
 func (t *table) discovery() {
 	run := func() {
-		for _, node := range t.copyNodes(t.ipNodes) {
+		limit := (t.max - len(t.ipNodes)) / 8
+		for i, node := range t.copyNodes(t.ipNodes) {
 			select {
 			case t.chDiscovery <- node:
 			case <-t.ctx.Done():
 				return
 			}
+			if i >= limit {
+				return
+			}
 		}
-		for _, node := range t.copyNodes(t.idNodes) {
+		limit = (t.max - len(t.idNodes)) / 8
+		for i, node := range t.copyNodes(t.idNodes) {
 			select {
 			case t.chDiscovery <- node:
 			case <-t.ctx.Done():
+				return
+			}
+			if i >= limit {
 				return
 			}
 		}
