@@ -1,6 +1,8 @@
 package data
 
 import (
+	"crypto/rand"
+
 	"github.com/lwch/bencode"
 )
 
@@ -21,13 +23,14 @@ type PingResponse struct {
 // PingReq build ping request packet
 func PingReq(id [20]byte) ([]byte, string, error) {
 	// optimize
-	tx := Rand(16)
+	var tx [16]byte
+	rand.Read(tx[:])
 	data := []byte("d1:y1:q1:q4:ping1:t16:")
-	data = append(data, []byte(tx)...)
+	data = append(data, tx[:]...)
 	data = append(data, []byte("1:ad2:id20:")...)
 	data = append(data, id[:]...)
 	data = append(data, []byte("ee")...)
-	return data, tx, nil
+	return data, string(tx[:]), nil
 	// req := PingRequest{
 	// 	Hdr: newHdr(request),
 	// 	reqData: newReqData("ping", map[string][20]byte{
