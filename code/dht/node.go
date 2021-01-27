@@ -26,6 +26,7 @@ func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
 		id:      id,
 		addr:    addr,
 		updated: time.Now(),
+		chPong:  make(chan struct{}),
 	}
 }
 
