@@ -101,3 +101,8 @@ func (mp *Map) expire() {
 		}
 	}
 }
+
+// Data get map data
+func (mp *Map) Data() interface{} {
+	return mp.data
+}

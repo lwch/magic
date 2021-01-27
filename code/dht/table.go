@@ -2,19 +2,95 @@ package dht
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/binary"
 	"math/rand"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/lwch/hashmap"
 	"github.com/lwch/magic/code/logging"
 )
 
+type tableNode struct {
+	k string
+	n *node
+}
+
+type tableSlice struct {
+	sync.Mutex
+	data []tableNode
+	size int64
+}
+
+func (s *tableSlice) Make(size uint64) {
+	s.data = make([]tableNode, size)
+}
+
+func (s *tableSlice) Resize(size uint64) {
+	s.Lock()
+	defer s.Unlock()
+	data := make([]tableNode, size)
+	copy(data, s.data)
+	s.data = data
+}
+
+func (s *tableSlice) Size() uint64 {
+	return uint64(s.size)
+}
+
+func (s *tableSlice) Cap() uint64 {
+	return uint64(len(s.data))
+}
+
+func (s *tableSlice) Hash(key interface{}) uint64 {
+	sum := md5.Sum([]byte(key.(string)))
+	a := binary.BigEndian.Uint64(sum[:])
+	b := binary.BigEndian.Uint64(sum[8:])
+	return a + b
+}
+
+func (s *tableSlice) KeyEqual(idx uint64, key interface{}) bool {
+	node := s.data[int(idx)%len(s.data)]
+	return node.k == key.(string)
+}
+
+func (s *tableSlice) Empty(idx uint64) bool {
+	node := s.data[int(idx)%len(s.data)]
+	return len(node.k) == 0
+}
+
+func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) {
+	target := &s.data[int(idx)%len(s.data)]
+	target.k = key.(string)
+	target.n = value.(*node)
+	if !update {
+		atomic.AddInt64(&s.size, 1)
+	}
+}
+
+func (s *tableSlice) Get(idx uint64) interface{} {
+	node := s.data[int(idx)%len(s.data)]
+	return node.n
+}
+
+func (s *tableSlice) Reset(idx uint64) {
+	node := &s.data[int(idx)%len(s.data)]
+	node.k = ""
+	node.n = nil
+	atomic.AddInt64(&s.size, -1)
+}
+
+func (s *tableSlice) Timeout(idx uint64) bool {
+	return false
+}
+
 type table struct {
-	sync.RWMutex
 	dht            *DHT
-	ipNodes        map[string]*node
-	idNodes        map[string]*node
+	ipNodes        *hashmap.Map // addr => node
+	idNodes        *hashmap.Map // id   => node
 	max            int
 	chDiscovery    chan *node
 	bootstrapAddrs []*net.UDPAddr
@@ -27,8 +103,8 @@ type table struct {
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
 		dht:         dht,
-		ipNodes:     make(map[string]*node, max),
-		idNodes:     make(map[string]*node, max),
+		ipNodes:     hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
+		idNodes:     hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
 		max:         max,
 		chDiscovery: make(chan *node),
 	}
@@ -44,7 +120,7 @@ func (t *table) close() {
 
 func (t *table) discovery() {
 	run := func() {
-		limit := (t.max - len(t.ipNodes)) / 8
+		limit := (t.max - int(t.ipNodes.Size())) / 8
 		for i, node := range t.copyNodes(t.ipNodes) {
 			select {
 			case t.chDiscovery <- node:
@@ -55,7 +131,7 @@ func (t *table) discovery() {
 				return
 			}
 		}
-		limit = (t.max - len(t.idNodes)) / 8
+		limit = (t.max - int(t.idNodes.Size())) / 8
 		for i, node := range t.copyNodes(t.idNodes) {
 			select {
 			case t.chDiscovery <- node:
@@ -68,9 +144,9 @@ func (t *table) discovery() {
 		}
 	}
 	for {
-		if len(t.ipNodes) < t.max {
+		if int(t.ipNodes.Size()) < t.max {
 			run()
-		} else if len(t.idNodes) < t.max {
+		} else if int(t.idNodes.Size()) < t.max {
 			run()
 		} else if t.dht.tx.size() == 0 {
 			run()
@@ -79,25 +155,23 @@ func (t *table) discovery() {
 		case <-t.ctx.Done():
 			return
 		default:
-			logging.Info("discovery: %d ip nodes, %d id nodes", len(t.ipNodes), len(t.idNodes))
+			logging.Info("discovery: %d ip nodes, %d id nodes", t.ipNodes.Size(), t.idNodes.Size())
 			time.Sleep(time.Second)
 		}
 	}
 }
 
 func (t *table) isFull() bool {
-	return len(t.ipNodes) >= t.max ||
-		len(t.idNodes) >= t.max
+	return int(t.ipNodes.Size()) >= t.max ||
+		int(t.idNodes.Size()) >= t.max
 }
 
 func (t *table) add(n *node) bool {
 	if t.isFull() {
 		return false
 	}
-	t.Lock()
-	t.ipNodes[n.addr.String()] = n
-	t.idNodes[n.id.String()] = n
-	t.Unlock()
+	t.ipNodes.Set(n.addr.String(), n)
+	t.idNodes.Set(n.id.String(), n)
 	return true
 }
 
@@ -131,40 +205,37 @@ func (t *table) checkKeepAlive() {
 	check(t.copyNodes(t.idNodes))
 }
 
-func (t *table) copyNodes(m map[string]*node) []*node {
-	t.RLock()
-	defer t.RUnlock()
-	ret := make([]*node, 0, len(m))
-	for _, v := range m {
-		ret = append(ret, v)
+func (t *table) copyNodes(m *hashmap.Map) []*node {
+	slice := m.Data().(*tableSlice)
+	ret := make([]*node, 0, m.Size())
+	for _, node := range slice.data {
+		if len(node.k) > 0 {
+			ret = append(ret, node.n)
+		}
 	}
 	return ret
 }
 
 func (t *table) remove(n *node) {
 	n.close()
-	t.Lock()
-	defer t.Unlock()
-	delete(t.ipNodes, n.addr.String())
-	delete(t.idNodes, n.id.String())
+	t.ipNodes.Remove(n.addr.String())
+	t.idNodes.Remove(n.id.String())
 }
 
 func (t *table) findAddr(addr net.Addr) *node {
-	t.RLock()
-	defer t.RUnlock()
-	if node, ok := t.ipNodes[addr.String()]; ok {
-		return node
+	data := t.ipNodes.Get(addr.String())
+	if data == nil {
+		return nil
 	}
-	return nil
+	return data.(*node)
 }
 
 func (t *table) findID(id hashType) *node {
-	t.RLock()
-	defer t.RUnlock()
-	if node, ok := t.idNodes[id.String()]; ok {
-		return node
+	data := t.idNodes.Get(id.String())
+	if data == nil {
+		return nil
 	}
-	return nil
+	return data.(*node)
 }
 
 func (t *table) loopDiscovery() {
