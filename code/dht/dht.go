@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -38,6 +39,7 @@ type DHT struct {
 	tb     *table
 	tx     *txMgr
 	tk     *tokenMgr
+	init   *initQueue
 	// bl     *blacklist
 	local hashType
 
@@ -53,6 +55,7 @@ func New(cfg *Config) (*DHT, error) {
 		tx: newTXMgr(cfg.TxTimeout),
 		tk: newTokenMgr(cfg.MaxToken),
 		// bl: newBlackList(),
+		init: newInitQueue(cfg.MaxNodes * 2),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -99,29 +102,39 @@ func (dht *DHT) recv() {
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
+	var hdr data.Hdr
+	err := bencode.Decode(buf, &hdr)
+	if err != nil {
+		return
+	}
 	node := dht.tb.findAddr(addr)
 	if node == nil {
 		var req struct {
-			data.Hdr
 			Data struct {
 				ID [20]byte `bencode:"id"`
 			} `bencode:"a"`
 		}
-		err := bencode.Decode(buf, &req)
-		if err != nil {
+		switch {
+		case hdr.IsRequest():
+			// if dht.bl.isBlockID(req.Data.ID) {
+			// 	return
+			// }
+			node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
+			logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
+			dht.tb.add(node)
+			// } else if dht.bl.isBlockID(node.id) {
+			// 	return
+		case hdr.IsResponse():
+			node := dht.init.find(hdr.Transaction)
+			if node == nil {
+				// TODO: block
+				return
+			}
+			node.updated = time.Now()
+			node.pong = time.Now()
+			dht.tb.add(node)
 			return
 		}
-		if !req.Hdr.IsRequest() {
-			return
-		}
-		// if dht.bl.isBlockID(req.Data.ID) {
-		// 	return
-		// }
-		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
-		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
-		dht.tb.add(node)
-		// } else if dht.bl.isBlockID(node.id) {
-		// 	return
 	}
 	node.onRecv(buf)
 }

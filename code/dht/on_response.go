@@ -5,30 +5,30 @@ import (
 	"encoding/binary"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
-func (n *node) onFindNodeResp(buf []byte) []*node {
+func (n *node) onFindNodeResp(buf []byte) {
 	var resp data.FindResponse
 	err := bencode.Decode(buf, &resp)
 	if err != nil {
 		logging.Error("decode find_node response data failed, id=%s, addr=%s, err=%v",
 			n.id.String(), n.addr.String(), err)
-		return nil
+		return
 	}
 	if len(resp.Response.Nodes)%26 > 0 {
 		logging.Error("invalid find_node response node data length, id=%s, addr=%s",
 			n.id.String(), n.addr.String())
-		return nil
+		return
 	}
-	nodes := make([]*node, 0, len(resp.Response.Nodes)%26)
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		if n.dht.tb.isFull() {
 			logging.Debug("is full")
-			return nil
+			return
 		}
 		var id hashType
 		copy(id[:], resp.Response.Nodes[i:i+20])
@@ -54,11 +54,18 @@ func (n *node) onFindNodeResp(buf []byte) []*node {
 		// 	n.dht.bl.isBlockID(id) {
 		// 	continue
 		// }
-		node := newNode(n.dht, id, addr)
-		n.dht.tb.add(node)
-		nodes = append(nodes, node)
+		go func(node *node) {
+			tx := node.sendPing(n.dht.listen, n.dht.local)
+			n.dht.init.push(tx, node)
+			for i := 0; i < 10; i++ {
+				time.Sleep(time.Second)
+				if time.Since(node.pong).Seconds() < 10 {
+					return
+				}
+			}
+			n.dht.init.unset(tx)
+		}(newNode(n.dht, id, addr))
 	}
-	return nodes
 }
 
 func (n *node) onGetPeersResp(buf []byte, hash hashType) {

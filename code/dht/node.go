@@ -16,6 +16,7 @@ type node struct {
 	id          hashType
 	addr        net.UDPAddr
 	updated     time.Time
+	pong        time.Time
 	isBootstrap bool
 }
 
@@ -58,18 +59,19 @@ func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
-func (n *node) sendPing(c *net.UDPConn, local hashType) {
+func (n *node) sendPing(c *net.UDPConn, local hashType) string {
 	buf, tx, err := data.PingReq(local)
 	if err != nil {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
-		return
+		return ""
 	}
 	_, err = c.WriteTo(buf, &n.addr)
 	if err != nil {
 		logging.Error("send get_peers packet failed" + n.errInfo(err))
-		return
+		return ""
 	}
 	n.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
+	return tx
 }
 
 func (n *node) sendGet(c *net.UDPConn, local, hash hashType) {
@@ -135,6 +137,7 @@ func (n *node) handleResponse(buf []byte, tx string) {
 	switch txr.t {
 	case data.TypePing:
 		n.updated = time.Now()
+		n.pong = time.Now()
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
 	case data.TypeGetPeers:
