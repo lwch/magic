@@ -35,20 +35,53 @@ func Encode(data interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func int64Str(i int64) string {
+	neg := i < 0
+	if i < 0 {
+		i = -i
+	}
+	var str []byte
+	for i != 0 {
+		str = append(str, byte(i%10+'0'))
+		i /= 10
+	}
+	if neg {
+		str = append(str, '-')
+	}
+	len := len(str)
+	for i := 0; i < len/2; i++ {
+		str[i], str[len-i-1] = str[len-i-1], str[i]
+	}
+	return string(str)
+}
+
+func uint64Str(i uint64) string {
+	var str []byte
+	for i != 0 {
+		str = append(str, byte(i%10+'0'))
+		i /= 10
+	}
+	len := len(str)
+	for i := 0; i < len/2; i++ {
+		str[i], str[len-i-1] = str[len-i-1], str[i]
+	}
+	return string(str)
+}
+
 func encode(buf io.Writer, v reflect.Value) error {
 	switch v.Kind() {
 	case reflect.Int,
 		reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
-		_, err := buf.Write([]byte(fmt.Sprintf("i%de", v.Int())))
+		_, err := buf.Write([]byte("i" + int64Str(v.Int()) + "e"))
 		return err
 	case reflect.Uint,
 		reflect.Uint8, reflect.Uint16,
 		reflect.Uint32, reflect.Uint64:
-		_, err := buf.Write([]byte(fmt.Sprintf("i%de", v.Uint())))
+		_, err := buf.Write([]byte("i" + uint64Str(v.Uint()) + "e"))
 		return err
 	case reflect.String:
-		_, err := buf.Write([]byte(fmt.Sprintf("%d:", v.Len())))
+		_, err := buf.Write([]byte(uint64Str(uint64(v.Len())) + ":"))
 		if err != nil {
 			return err
 		}
