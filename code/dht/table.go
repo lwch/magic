@@ -247,6 +247,9 @@ func (t *table) findID(id hashType) *node {
 }
 
 func (t *table) loopDiscovery() {
+	dt := time.Now()
+	cnt := 0
+	const limit = 100
 	for {
 		var n *node
 		select {
@@ -255,6 +258,19 @@ func (t *table) loopDiscovery() {
 			return
 		}
 		n.sendDiscovery(t.dht.listen, t.dht.local)
+		now := time.Now()
+		if dt.Unix() == now.Unix() {
+			leftTime := 999999999 - now.Nanosecond()
+			left := limit - cnt
+			if left <= 0 {
+				time.Sleep(time.Duration(leftTime))
+			} else {
+				time.Sleep(time.Duration(leftTime / left))
+			}
+		} else {
+			dt = now
+			cnt = 1
+		}
 	}
 }
 
