@@ -65,15 +65,17 @@ func (mp *Map) Get(key interface{}) interface{} {
 }
 
 // Remove remove data
-func (mp *Map) Remove(key interface{}) {
+func (mp *Map) Remove(key interface{}) bool {
 	h := mp.data.Hash(key)
 	idx := h % mp.data.Cap()
 	for i := 0; i < mp.retry+1; i++ {
 		if mp.data.KeyEqual(idx, key) {
 			mp.data.Reset(idx)
+			return true
 		}
 		idx = (idx + magic) % mp.data.Cap()
 	}
+	return false
 }
 
 func (mp *Map) expire() {

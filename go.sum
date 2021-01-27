@@ -8,5 +8,7 @@ github.com/lwch/hashmap v0.0.0-20210127072659-3b975b7e1436 h1:QkByFjupvN43tjM1rG
 github.com/lwch/hashmap v0.0.0-20210127072659-3b975b7e1436/go.mod h1:U39PmKjozflqErL8d0TJbVZVVOPpiOyhDv1uXOZDwH4=
 github.com/lwch/hashmap v0.0.0-20210127082757-92bf710c1bd3 h1:e4Dq5GnmeB+NQY4WwAkRQans+d9R4nPhVAAUr8C2dqo=
 github.com/lwch/hashmap v0.0.0-20210127082757-92bf710c1bd3/go.mod h1:U39PmKjozflqErL8d0TJbVZVVOPpiOyhDv1uXOZDwH4=
+github.com/lwch/hashmap v0.0.0-20210127085519-fd68119c44db h1:B5LhZfS78N/6qMhF47EecyiLUoOYNnRe1GuVeolHKnE=
+github.com/lwch/hashmap v0.0.0-20210127085519-fd68119c44db/go.mod h1:U39PmKjozflqErL8d0TJbVZVVOPpiOyhDv1uXOZDwH4=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d/go.mod h1:uEt0zu1MDC7WnVvodPBGSYAD/KMKk0v36xE8UE5veM8=

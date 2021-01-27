@@ -230,8 +230,12 @@ func (t *table) copyNodes(m *hashmap.Map) []*node {
 
 func (t *table) remove(n *node) {
 	n.close()
-	t.ipNodes.Remove(n.addr.String())
-	t.idNodes.Remove(n.id.String())
+	if !t.ipNodes.Remove(n.addr.String()) {
+		logging.Error("remove node by addr %s failed", n.addr.String())
+	}
+	if !t.idNodes.Remove(n.id.String()) {
+		logging.Error("remove node by id %s failed", n.id.String())
+	}
 }
 
 func (t *table) findAddr(addr net.Addr) *node {
