@@ -23,7 +23,7 @@ func (n *node) onPing() {
 	}
 }
 
-func compactNodes(nodes []node) []byte {
+func compactNodes(nodes []*node) []byte {
 	ret := make([]byte, len(nodes)*26)
 	for i := 0; i < len(nodes); i++ {
 		node := nodes[i]

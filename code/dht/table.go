@@ -13,8 +13,8 @@ import (
 type table struct {
 	sync.RWMutex
 	dht            *DHT
-	ipNodes        map[string]node
-	idNodes        map[string]node
+	ipNodes        map[string]*node
+	idNodes        map[string]*node
 	max            int
 	chDiscovery    chan *node
 	bootstrapAddrs []*net.UDPAddr
@@ -27,8 +27,8 @@ type table struct {
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
 		dht:         dht,
-		ipNodes:     make(map[string]node, max),
-		idNodes:     make(map[string]node, max),
+		ipNodes:     make(map[string]*node, max),
+		idNodes:     make(map[string]*node, max),
 		max:         max,
 		chDiscovery: make(chan *node),
 	}
@@ -46,14 +46,14 @@ func (t *table) discovery() {
 	run := func() {
 		for _, node := range t.copyNodes(t.ipNodes) {
 			select {
-			case t.chDiscovery <- &node:
+			case t.chDiscovery <- node:
 			case <-t.ctx.Done():
 				return
 			}
 		}
 		for _, node := range t.copyNodes(t.idNodes) {
 			select {
-			case t.chDiscovery <- &node:
+			case t.chDiscovery <- node:
 			case <-t.ctx.Done():
 				return
 			}
@@ -87,8 +87,8 @@ func (t *table) add(n *node) bool {
 		return false
 	}
 	t.Lock()
-	t.ipNodes[n.addr.String()] = *n
-	t.idNodes[n.id.String()] = *n
+	t.ipNodes[n.addr.String()] = n
+	t.idNodes[n.id.String()] = n
 	t.Unlock()
 	return true
 }
@@ -106,7 +106,7 @@ func (t *table) keepalive() {
 }
 
 func (t *table) checkKeepAlive() {
-	check := func(list []node) {
+	check := func(list []*node) {
 		for _, node := range list {
 			sec := time.Since(node.updated)
 			if sec >= 10 {
@@ -123,17 +123,17 @@ func (t *table) checkKeepAlive() {
 	check(t.copyNodes(t.idNodes))
 }
 
-func (t *table) copyNodes(m map[string]node) []node {
+func (t *table) copyNodes(m map[string]*node) []*node {
 	t.RLock()
 	defer t.RUnlock()
-	ret := make([]node, 0, len(m))
+	ret := make([]*node, 0, len(m))
 	for _, v := range m {
 		ret = append(ret, v)
 	}
 	return ret
 }
 
-func (t *table) remove(n node) {
+func (t *table) remove(n *node) {
 	n.close()
 	t.Lock()
 	defer t.Unlock()
@@ -145,7 +145,7 @@ func (t *table) findAddr(addr net.Addr) *node {
 	t.RLock()
 	defer t.RUnlock()
 	if node, ok := t.ipNodes[addr.String()]; ok {
-		return &node
+		return node
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
 	if node, ok := t.idNodes[id.String()]; ok {
-		return &node
+		return node
 	}
 	return nil
 }
@@ -171,13 +171,13 @@ func (t *table) loopDiscovery() {
 	}
 }
 
-func (t *table) neighbor(id hashType, n int) []node {
+func (t *table) neighbor(id hashType, n int) []*node {
 	nodes := t.copyNodes(t.idNodes)
 	if len(nodes) < n {
 		return nil
 	}
 	// random select
-	ret := make([]node, 0, n)
+	ret := make([]*node, 0, n)
 	for i := 0; i < n; i++ {
 		ret = append(ret, nodes[rand.Intn(len(nodes))])
 	}
