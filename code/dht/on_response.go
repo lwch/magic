@@ -59,6 +59,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 			n.dht.init.push(tx, node)
 			defer n.dht.init.unset(tx)
 			for i := 0; i < 10; i++ {
+				time.Sleep(time.Second)
 				if time.Since(node.pong).Seconds() < 10 {
 					n.dht.tb.add(node)
 					return
