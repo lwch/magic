@@ -39,12 +39,13 @@ type pkt struct {
 
 // DHT dht manager
 type DHT struct {
-	listen *net.UDPConn
-	tb     *table
-	tx     *txMgr
-	init   *initQueue
-	local  hashType
-	chRead chan pkt
+	listen   *net.UDPConn
+	tb       *table
+	tx       *txMgr
+	init     *initQueue
+	local    hashType
+	chRead   chan pkt
+	maxNodes int
 
 	// runtime
 	ctx    context.Context
@@ -55,9 +56,10 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx:     newTXMgr(cfg.TxTimeout),
-		init:   newInitQueue(cfg.MaxNodes),
-		chRead: make(chan pkt, 100),
+		tx:       newTXMgr(cfg.TxTimeout),
+		init:     newInitQueue(cfg.MaxNodes),
+		chRead:   make(chan pkt, 100),
+		maxNodes: cfg.MaxNodes,
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, cfg.MaxNodes)
@@ -115,8 +117,10 @@ func (dht *DHT) handler() {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
-			dht.tx.clear()
-			if dht.tx.size() == 0 {
+			if dht.tb.ipSize() < dht.maxNodes ||
+				dht.tb.idSize() < dht.maxNodes {
+				dht.tb.discovery()
+			} else if dht.tx.size() == 0 {
 				dht.tb.discovery()
 			}
 		case <-dht.ctx.Done():
