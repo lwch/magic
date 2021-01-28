@@ -39,7 +39,6 @@ type DHT struct {
 	listen *net.UDPConn
 	tb     *table
 	tx     *txMgr
-	init   *initQueue
 	local  hashType
 	chRead chan pkt
 
@@ -53,7 +52,6 @@ func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
 		tx:     newTXMgr(cfg.TxTimeout),
-		init:   newInitQueue(cfg.MaxNodes << 1),
 		chRead: make(chan pkt, 100),
 	}
 	rand.Read(dht.local[:])
