@@ -6,11 +6,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
-	"time"
-
-	"github.com/lwch/bencode"
-	"github.com/lwch/magic/code/data"
-	"github.com/lwch/magic/code/logging"
 )
 
 const neighborSize = 8
@@ -43,9 +38,7 @@ type DHT struct {
 	listen *net.UDPConn
 	tb     *table
 	tx     *txMgr
-	tk     *tokenMgr
 	init   *initQueue
-	// bl     *blacklist
 	local  hashType
 	chRead chan pkt
 
@@ -58,9 +51,7 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx: newTXMgr(cfg.TxTimeout),
-		tk: newTokenMgr(cfg.MaxToken),
-		// bl: newBlackList(),
+		tx:     newTXMgr(cfg.TxTimeout),
 		init:   newInitQueue(cfg.MaxNodes << 1),
 		chRead: make(chan pkt, 100),
 	}
@@ -72,9 +63,7 @@ func New(cfg *Config) (*DHT, error) {
 		Port: int(cfg.Listen),
 	})
 	go dht.recv()
-	for i := 0; i < 30; i++ {
-		go dht.handler()
-	}
+	go dht.handler()
 	return dht, err
 }
 
@@ -83,7 +72,6 @@ func (dht *DHT) Close() {
 	dht.listen.Close()
 	dht.tb.close()
 	dht.tx.close()
-	dht.tk.close()
 	dht.cancel()
 }
 
@@ -113,61 +101,56 @@ func (dht *DHT) recv() {
 		}:
 		default:
 		}
-		// if dht.bl.isBlockAddr(addr) {
-		// 	continue
-		// }
-		// dht.handleData(addr, buf[:n])
 	}
 }
 
 func (dht *DHT) handler() {
 	for {
-		pkt := <-dht.chRead
-		dht.handleData(pkt.addr, pkt.data)
+		select {
+		case pkt := <-dht.chRead:
+			dht.handleData(pkt.addr, pkt.data)
+		}
 	}
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
-	var hdr data.Hdr
-	err := bencode.Decode(buf, &hdr)
-	if err != nil {
-		return
-	}
+	// var hdr data.Hdr
+	// err := bencode.Decode(buf, &hdr)
+	// if err != nil {
+	// 	return
+	// }
 	node := dht.tb.findAddr(addr)
 	if node == nil {
-		switch {
-		case hdr.IsRequest():
-			var req struct {
-				Data struct {
-					ID [20]byte `bencode:"id"`
-				} `bencode:"a"`
-			}
-			// if dht.bl.isBlockID(req.Data.ID) {
-			// 	return
-			// }
-			if bytes.Equal(req.Data.ID[:], emptyHash[:]) {
-				return
-			}
-			node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
-			logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
-			dht.tb.add(node)
-			// } else if dht.bl.isBlockID(node.id) {
-			// 	return
-		case hdr.IsResponse():
-			node := dht.init.find(hdr.Transaction)
-			if node == nil {
-				// TODO: block
-				return
-			}
-			node.updated = time.Now()
-			select {
-			case node.chPong <- struct{}{}:
-			default:
-			}
-			return
-		default:
-			return
-		}
+		return
 	}
+	// if node == nil {
+	// 	switch {
+	// 	case hdr.IsRequest():
+	// 		var req struct {
+	// 			Data struct {
+	// 				ID [20]byte `bencode:"id"`
+	// 			} `bencode:"a"`
+	// 		}
+	// 		if bytes.Equal(req.Data.ID[:], emptyHash[:]) {
+	// 			return
+	// 		}
+	// 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
+	// 		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
+	// 		dht.tb.add(node)
+	// 	case hdr.IsResponse():
+	// 		node := dht.init.find(hdr.Transaction)
+	// 		if node == nil {
+	// 			return
+	// 		}
+	// 		node.updated = time.Now()
+	// 		select {
+	// 		case node.chPong <- struct{}{}:
+	// 		default:
+	// 		}
+	// 		return
+	// 	default:
+	// 		return
+	// 	}
+	// }
 	node.onRecv(buf)
 }

@@ -99,7 +99,7 @@ func (n *node) onRecv(buf []byte) {
 	}
 	switch {
 	case hdr.IsRequest():
-		n.handleRequest(buf)
+		// n.handleRequest(buf)
 	case hdr.IsResponse():
 		n.handleResponse(buf, hdr.Transaction)
 	}
@@ -113,8 +113,6 @@ func (n *node) handleRequest(buf []byte) {
 	}
 	bencode.Decode(buf, &req)
 	if !n.id.equal(req.Data.ID) {
-		// n.dht.bl.blockAddr(&n.addr)
-		// n.dht.bl.blockID(n.id)
 		n.dht.tb.remove(n)
 		return
 	}
@@ -144,8 +142,8 @@ func (n *node) handleResponse(buf []byte, tx string) {
 		}
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
-	case data.TypeGetPeers:
-		n.onGetPeersResp(buf, txr.hash)
+		// case data.TypeGetPeers:
+		// 	n.onGetPeersResp(buf, txr.hash)
 	}
 }
 

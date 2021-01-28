@@ -13,6 +13,7 @@ import (
 )
 
 func (n *node) onFindNodeResp(buf []byte) {
+	return
 	var resp data.FindResponse
 	err := bencode.Decode(buf, &resp)
 	if err != nil {
@@ -87,7 +88,7 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
 		return
 	}
-	n.dht.tk.add(found.Response.Token, hash, n.id)
+	// n.dht.tk.add(found.Response.Token, hash, n.id)
 	for _, peer := range found.Response.Values {
 		if len(peer) != 6 {
 			continue
