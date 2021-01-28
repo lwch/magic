@@ -36,4 +36,5 @@ func main() {
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
+	<-make(chan int)
 }
