@@ -12,7 +12,6 @@ import (
 )
 
 func (n *node) onFindNodeResp(buf []byte) {
-	logging.Info("onFindNodeResp")
 	// var resp data.FindResponse
 	// err := bencode.Decode(buf, &resp)
 	// if err != nil {
