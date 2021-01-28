@@ -1,4 +1,5 @@
 #!/bin/sh
 ./build
 killall magic
+sleep 1
 nohup ./bin/magic >log 2>&1 &
