@@ -127,3 +127,7 @@ func (mgr *txMgr) find(id string) *tx {
 	mgr.txs.Remove(id)
 	return node.(*tx)
 }
+
+func (mgr *txMgr) clear() {
+	mgr.txs.Clear()
+}
