@@ -1,126 +1,139 @@
 package dht
 
 import (
+	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/binary"
-	"math/rand"
+	"fmt"
 	"net"
 	"sync"
-	"time"
-
-	"github.com/lwch/hashmap"
-	"github.com/lwch/magic/code/logging"
 )
 
-type tableNode struct {
-	k string
-	n *node
+type bucket struct {
+	sync.RWMutex
+	prefix hashType
+	nodes  []*node
+	leaf   [2]*bucket
+	bits   int
 }
 
-type tableSlice struct {
-	sync.Mutex
-	data []tableNode
-	size int64
+func (bk *bucket) isLeaf() bool {
+	bk.RLock()
+	defer bk.RUnlock()
+	return bk.leaf[0] == nil && bk.leaf[1] == nil
 }
 
-func (s *tableSlice) Make(size uint64) {
-	s.data = make([]tableNode, size)
-}
-
-func (s *tableSlice) Resize(size uint64) {
-	s.Lock()
-	defer s.Unlock()
-	data := make([]tableNode, size)
-	copy(data, s.data)
-	s.data = data
-}
-
-func (s *tableSlice) Size() uint64 {
-	return uint64(s.size)
-}
-
-func (s *tableSlice) Cap() uint64 {
-	return uint64(len(s.data))
-}
-
-func (s *tableSlice) Hash(key interface{}) uint64 {
-	sum := md5.Sum([]byte(key.(string)))
-	a := binary.BigEndian.Uint64(sum[:])
-	b := binary.BigEndian.Uint64(sum[8:])
-	return a + b
-}
-
-func (s *tableSlice) KeyEqual(idx uint64, key interface{}) bool {
-	node := s.data[int(idx)%len(s.data)]
-	return node.k == key.(string)
-}
-
-func (s *tableSlice) Empty(idx uint64) bool {
-	node := s.data[int(idx)%len(s.data)]
-	return len(node.k) == 0 && node.n == nil
-}
-
-func (s *tableSlice) Set(idx uint64, key, value interface{}, deadtime time.Time, update bool) bool {
-	target := &s.data[int(idx)%len(s.data)]
-	if len(target.k) > 0 || target.n != nil {
+func (bk *bucket) addNode(n *node, k int) bool {
+	bk.Lock()
+	defer bk.Unlock()
+	if bk.exists(n.id) {
 		return false
 	}
-	target.k = key.(string)
-	target.n = value.(*node)
-	if !update {
-		s.size++
+	if len(bk.nodes) >= k {
+		loopSplit(bk, k)
+		target := bk.searchAdd(n)
+		if target.exists(n.id) {
+			return false
+		}
+		target.nodes = append(target.nodes, n)
+		return true
+	}
+	bk.nodes = append(bk.nodes, n)
+	return true
+}
+
+func loopSplit(bk *bucket, k int) {
+	if bk.bits > len(bk.prefix)*8-k {
+		panic(fmt.Errorf("too large: %d", bk.bits))
+	}
+	bk.split()
+	if len(bk.leaf[0].nodes) >= k {
+		loopSplit(bk.leaf[0], k)
+	}
+	if len(bk.leaf[1].nodes) >= k {
+		loopSplit(bk.leaf[1], k)
+	}
+}
+
+func (bk *bucket) exists(id hashType) bool {
+	for _, node := range bk.nodes {
+		if bytes.Equal(node.id[:], id[:]) {
+			return true
+		}
+	}
+	return false
+}
+
+func (bk *bucket) searchAdd(n *node) *bucket {
+	if bk.leaf[0] == nil && bk.leaf[1] == nil {
+		return bk
+	}
+	return bk.leaf[n.id.bit(bk.bits+1)].searchAdd(n)
+}
+
+func (bk *bucket) split() {
+	var id hashType
+	copy(id[:], bk.prefix[:])
+	if bk.leaf[0] == nil {
+		bk.leaf[0] = newBucket(id, bk.bits+1)
+	}
+	if bk.leaf[1] == nil {
+		bt := bk.bits / 8
+		bit := bk.bits % 8
+		id[bt] |= 1 << (7 - bit)
+		bk.leaf[1] = newBucket(id, bk.bits+1)
+	}
+	for _, node := range bk.nodes {
+		if bk.leaf[0].equalBits(node.id) {
+			bk.leaf[0].nodes = append(bk.leaf[0].nodes, node)
+		} else {
+			bk.leaf[1].nodes = append(bk.leaf[1].nodes, node)
+		}
+	}
+	bk.nodes = nil
+}
+
+func (bk *bucket) equalBits(id hashType) bool {
+	bt := bk.bits / 8
+	bit := bk.bits % 8
+	for i := 0; i < bt; i++ {
+		if bk.prefix[i]^id[i] > 0 {
+			return false
+		}
+	}
+	a := bk.prefix[bt] >> (8 - bit)
+	b := id[bt] >> (8 - bit)
+	if a^b > 0 {
+		return false
 	}
 	return true
 }
 
-func (s *tableSlice) Get(idx uint64) interface{} {
-	node := s.data[int(idx)%len(s.data)]
-	return node.n
-}
-
-func (s *tableSlice) Reset(idx uint64) {
-	node := &s.data[int(idx)%len(s.data)]
-	node.k = ""
-	node.n = nil
-	s.size--
-}
-
-func (s *tableSlice) Timeout(idx uint64) bool {
-	return false
-}
-
-func (s *tableSlice) nodes() []*node {
-	ret := make([]*node, 0, int(s.size))
-	for i := uint64(0); i < s.Cap(); i++ {
-		node := s.data[i]
-		if len(node.k) > 0 {
-			ret = append(ret, node.n)
-		}
+func newBucket(prefix hashType, bits int) *bucket {
+	return &bucket{
+		prefix: prefix,
+		bits:   bits,
 	}
-	return ret
 }
 
 type table struct {
-	dht     *DHT
-	ipNodes *hashmap.Map // addr => node
-	idNodes *hashmap.Map // id   => node
-	max     int
+	sync.RWMutex
+	dht  *DHT
+	root *bucket
+	k    int
+	size int
 
 	// runtime
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func newTable(dht *DHT, max int) *table {
+func newTable(dht *DHT, k int) *table {
 	tb := &table{
-		dht:     dht,
-		ipNodes: hashmap.New(&tableSlice{}, uint64(max), 5, time.Second),
-		idNodes: hashmap.New(&tableSlice{}, uint64(max), 5, time.Second),
-		max:     max,
+		dht:  dht,
+		root: newBucket(emptyHash, 0),
+		k:    k,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
-	go tb.keepalive()
 	return tb
 }
 
@@ -129,123 +142,33 @@ func (t *table) close() {
 }
 
 func (t *table) discovery() {
-	limit := (t.max - int(t.ipNodes.Size())) / 8
-	for i, node := range t.copyNodes(t.ipNodes) {
-		node.sendDiscovery(t.dht.listen, t.dht.local)
-		if i >= limit {
-			return
-		}
-	}
-	limit = (t.max - int(t.idNodes.Size())) / 8
-	for i, node := range t.copyNodes(t.idNodes) {
-		node.sendDiscovery(t.dht.listen, t.dht.local)
-		if i >= limit {
-			return
-		}
-	}
-}
-
-func (t *table) isFull() bool {
-	return int(t.ipNodes.Size()) >= t.max ||
-		int(t.idNodes.Size()) >= t.max
 }
 
 func (t *table) add(n *node) bool {
-	if t.isFull() {
-		return false
-	}
-	t.ipNodes.Set(n.addr.String(), n)
-	t.idNodes.Set(n.id.String(), n)
-	return true
-}
-
-func (t *table) keepalive() {
-	for {
-		select {
-		case <-time.After(time.Second):
-			t.checkKeepAlive()
-		case <-t.ctx.Done():
-			return
+	t.Lock()
+	defer t.Unlock()
+	next := t.root
+	for idx := 0; idx < len(n.id)*8; idx++ {
+		if next.isLeaf() {
+			return next.addNode(n, t.k)
 		}
+		next = next.leaf[n.id.bit(idx)]
 	}
-}
-
-func (t *table) checkKeepAlive() {
-	removed := make(map[*node]bool)
-	check := func(list []*node) {
-		for _, node := range list {
-			sec := time.Since(node.updated).Seconds()
-			if sec >= 10 {
-				if !node.isBootstrap && !removed[node] {
-					t.remove(node)
-					removed[node] = true
-				}
-				// } else if sec >= 5 {
-				// 	node.sendPing(t.dht.listen, t.dht.local)
-			}
-		}
-	}
-	check(t.copyNodes(t.ipNodes))
-	check(t.copyNodes(t.idNodes))
-	logging.Info("keepalive: %d ip nodes, %d id nodes",
-		t.ipNodes.Size(), t.idNodes.Size())
-}
-
-func (t *table) copyNodes(m *hashmap.Map) []*node {
-	return m.Data().(*tableSlice).nodes()
+	return false
 }
 
 func (t *table) remove(n *node) {
 	n.close()
-	t.ipNodes.Remove(n.addr.String())
-	t.idNodes.Remove(n.id.String())
 }
 
 func (t *table) findAddr(addr net.Addr) *node {
-	data := t.ipNodes.Get(addr.String())
-	if data == nil {
-		return nil
-	}
-	return data.(*node)
+	return nil
 }
 
 func (t *table) findID(id hashType) *node {
-	data := t.idNodes.Get(id.String())
-	if data == nil {
-		return nil
-	}
-	return data.(*node)
+	return nil
 }
 
 func (t *table) neighbor(id hashType, n int) []*node {
-	nodes := t.copyNodes(t.idNodes)
-	if len(nodes) < n {
-		return nil
-	}
-	// random select
-	ret := make([]*node, 0, n)
-	for i := 0; i < n; i++ {
-		ret = append(ret, nodes[rand.Intn(len(nodes))])
-	}
-	return ret
-	// sort.Slice(nodes, func(i, j int) bool {
-	// 	for x := 0; x < 20; x++ {
-	// 		a := id[x] ^ nodes[i].id[x]
-	// 		b := id[x] ^ nodes[j].id[x]
-	// 		if a == b {
-	// 			continue
-	// 		}
-	// 		return a < b
-	// 	}
-	// 	return false
-	// })
-	// return nodes[:n]
-}
-
-func (t *table) ipSize() int {
-	return int(t.ipNodes.Size())
-}
-
-func (t *table) idSize() int {
-	return int(t.idNodes.Size())
+	return nil
 }

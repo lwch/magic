@@ -26,10 +26,6 @@ func (n *node) onFindNodeResp(buf []byte) {
 		return
 	}
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
-		if n.dht.tb.isFull() {
-			logging.Debug("is full")
-			return
-		}
 		var id hashType
 		copy(id[:], resp.Response.Nodes[i:i+20])
 		if n.dht.tb.findID(id) != nil {
