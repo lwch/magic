@@ -71,7 +71,6 @@ func (n *node) sendPing(c *net.UDPConn, local hashType) string {
 		logging.Error("send get_peers packet failed" + n.errInfo(err))
 		return ""
 	}
-	n.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 	return tx
 }
 
