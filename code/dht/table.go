@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net"
 	"sync"
 )
@@ -42,9 +41,6 @@ func (bk *bucket) addNode(n *node, k int) bool {
 }
 
 func loopSplit(bk *bucket, k int) {
-	if bk.bits > len(bk.prefix)*8-k {
-		panic(fmt.Errorf("too large: %d", bk.bits))
-	}
 	bk.split()
 	if len(bk.leaf[0].nodes) >= k {
 		loopSplit(bk.leaf[0], k)
@@ -67,7 +63,7 @@ func (bk *bucket) searchAdd(n *node) *bucket {
 	if bk.leaf[0] == nil && bk.leaf[1] == nil {
 		return bk
 	}
-	return bk.leaf[n.id.bit(bk.bits+1)].searchAdd(n)
+	return bk.leaf[n.id.bit(bk.bits)].searchAdd(n)
 }
 
 func (bk *bucket) split() {
