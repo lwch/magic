@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/lwch/bencode"
+	"github.com/lwch/magic/code/data"
 )
 
 const neighborSize = 8
@@ -39,6 +42,7 @@ type DHT struct {
 	listen *net.UDPConn
 	tb     *table
 	tx     *txMgr
+	init   *initQueue
 	local  hashType
 	chRead chan pkt
 
@@ -52,6 +56,7 @@ func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
 		tx:     newTXMgr(cfg.TxTimeout),
+		init:   newInitQueue(cfg.MaxNodes),
 		chRead: make(chan pkt, 100),
 	}
 	rand.Read(dht.local[:])
@@ -122,7 +127,27 @@ func (dht *DHT) handler() {
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 	node := dht.tb.findAddr(addr)
 	if node == nil {
-		return
+		var hdr data.Hdr
+		err := bencode.Decode(buf, &hdr)
+		if err != nil {
+			return
+		}
+		switch {
+		case hdr.IsRequest():
+		case hdr.IsResponse():
+			node = dht.init.find(hdr.Transaction)
+			if node == nil {
+				return
+			}
+			node.updated = time.Now()
+			select {
+			case node.chPong <- struct{}{}:
+			default:
+			}
+			return
+		default:
+			return
+		}
 	}
 	node.onRecv(buf)
 }
