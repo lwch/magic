@@ -124,5 +124,6 @@ func (mgr *txMgr) find(id string) *tx {
 	if node == nil {
 		return nil
 	}
+	mgr.txs.Remove(id)
 	return node.(*tx)
 }
