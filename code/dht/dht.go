@@ -134,6 +134,7 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		}
 		switch {
 		case hdr.IsRequest():
+			return
 		case hdr.IsResponse():
 			node = dht.init.find(hdr.Transaction)
 			if node == nil {
