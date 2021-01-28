@@ -124,7 +124,6 @@ func newTable(dht *DHT, max int) *table {
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go tb.keepalive()
-	go tb.loopDiscovery()
 	return tb
 }
 
@@ -230,35 +229,6 @@ func (t *table) findID(id hashType) *node {
 	return data.(*node)
 }
 
-func (t *table) loopDiscovery() {
-	dt := time.Now()
-	cnt := 0
-	const limit = 50
-	for {
-		var n *node
-		select {
-		case n = <-t.chDiscovery:
-		case <-t.ctx.Done():
-			return
-		}
-		n.sendDiscovery(t.dht.listen, t.dht.local)
-		now := time.Now()
-		cnt++
-		if dt.Unix() == now.Unix() {
-			leftTime := 999999999 - now.Nanosecond()
-			left := limit - cnt
-			if left <= 0 {
-				time.Sleep(time.Duration(leftTime))
-			} else {
-				time.Sleep(time.Duration(leftTime / left))
-			}
-		} else {
-			dt = now
-			cnt = 1
-		}
-	}
-}
-
 func (t *table) neighbor(id hashType, n int) []*node {
 	nodes := t.copyNodes(t.idNodes)
 	if len(nodes) < n {
@@ -282,4 +252,12 @@ func (t *table) neighbor(id hashType, n int) []*node {
 	// 	return false
 	// })
 	// return nodes[:n]
+}
+
+func (t *table) ipSize() int {
+	return int(t.ipNodes.Size())
+}
+
+func (t *table) idSize() int {
+	return int(t.idNodes.Size())
 }

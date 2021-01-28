@@ -112,6 +112,14 @@ func (dht *DHT) handler() {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
+			if dht.tb.ipSize() == 0 ||
+				dht.tb.idSize() == 0 {
+				dht.tb.discovery()
+			} else if dht.tx.size() == 0 {
+				dht.tb.discovery()
+			}
+		case <-dht.ctx.Done():
+			return
 		}
 	}
 }
