@@ -100,7 +100,7 @@ type txMgr struct {
 }
 
 func newTXMgr(timeout time.Duration) *txMgr {
-	return &txMgr{txs: hashmap.New(&txSlice{}, 1000, 5, 1000, timeout)}
+	return &txMgr{txs: hashmap.New(&txSlice{}, 1000, 5, 100, timeout)}
 }
 
 func (mgr *txMgr) close() {
