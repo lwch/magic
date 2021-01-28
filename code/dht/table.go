@@ -179,10 +179,9 @@ func (t *table) checkKeepAlive() {
 				if !node.isBootstrap && !removed[node] {
 					t.remove(node)
 					removed[node] = true
-					// t.dht.bl.blockID(node.id)
 				}
-			} else if sec >= 5 {
-				node.sendPing(t.dht.listen, t.dht.local)
+				// } else if sec >= 5 {
+				// 	node.sendPing(t.dht.listen, t.dht.local)
 			}
 		}
 	}
