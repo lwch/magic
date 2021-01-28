@@ -120,43 +120,9 @@ func (dht *DHT) handler() {
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
-	// var hdr data.Hdr
-	// err := bencode.Decode(buf, &hdr)
-	// if err != nil {
-	// 	return
-	// }
 	node := dht.tb.findAddr(addr)
 	if node == nil {
 		return
 	}
-	// if node == nil {
-	// 	switch {
-	// 	case hdr.IsRequest():
-	// 		var req struct {
-	// 			Data struct {
-	// 				ID [20]byte `bencode:"id"`
-	// 			} `bencode:"a"`
-	// 		}
-	// 		if bytes.Equal(req.Data.ID[:], emptyHash[:]) {
-	// 			return
-	// 		}
-	// 		node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
-	// 		logging.Debug("anonymous node: %x, addr=%s", req.Data.ID, addr.String())
-	// 		dht.tb.add(node)
-	// 	case hdr.IsResponse():
-	// 		node := dht.init.find(hdr.Transaction)
-	// 		if node == nil {
-	// 			return
-	// 		}
-	// 		node.updated = time.Now()
-	// 		select {
-	// 		case node.chPong <- struct{}{}:
-	// 		default:
-	// 		}
-	// 		return
-	// 	default:
-	// 		return
-	// 	}
-	// }
 	node.onRecv(buf)
 }
