@@ -115,8 +115,8 @@ type table struct {
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
 		dht:     dht,
-		ipNodes: hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
-		idNodes: hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
+		ipNodes: hashmap.New(&tableSlice{}, uint64(max), 5, time.Second),
+		idNodes: hashmap.New(&tableSlice{}, uint64(max), 5, time.Second),
 		max:     max,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())

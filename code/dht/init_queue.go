@@ -98,7 +98,7 @@ type initQueue struct {
 
 func newInitQueue(size int) *initQueue {
 	return &initQueue{
-		data: hashmap.New(&queueSlice{}, uint64(size), 10, 1000, 10*time.Second),
+		data: hashmap.New(&queueSlice{}, uint64(size), 10, 10*time.Second),
 	}
 }
 
