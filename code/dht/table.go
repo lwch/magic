@@ -133,44 +133,26 @@ func (t *table) close() {
 }
 
 func (t *table) discovery() {
-	run := func() {
-		limit := (t.max - int(t.ipNodes.Size())) / 8
-		for i, node := range t.copyNodes(t.ipNodes) {
-			select {
-			case t.chDiscovery <- node:
-			case <-t.ctx.Done():
-				return
-			}
-			if i >= limit {
-				return
-			}
-		}
-		limit = (t.max - int(t.idNodes.Size())) / 8
-		for i, node := range t.copyNodes(t.idNodes) {
-			select {
-			case t.chDiscovery <- node:
-			case <-t.ctx.Done():
-				return
-			}
-			if i >= limit {
-				return
-			}
-		}
-	}
-	for {
-		if int(t.ipNodes.Size()) < t.max {
-			run()
-		} else if int(t.idNodes.Size()) < t.max {
-			run()
-		} else if t.dht.tx.size() == 0 {
-			run()
-		}
+	limit := (t.max - int(t.ipNodes.Size())) / 8
+	for i, node := range t.copyNodes(t.ipNodes) {
 		select {
+		case t.chDiscovery <- node:
 		case <-t.ctx.Done():
 			return
-		default:
-			logging.Info("discovery: %d ip nodes, %d id nodes", t.ipNodes.Size(), t.idNodes.Size())
-			time.Sleep(time.Second)
+		}
+		if i >= limit {
+			return
+		}
+	}
+	limit = (t.max - int(t.idNodes.Size())) / 8
+	for i, node := range t.copyNodes(t.idNodes) {
+		select {
+		case t.chDiscovery <- node:
+		case <-t.ctx.Done():
+			return
+		}
+		if i >= limit {
+			return
 		}
 	}
 }
@@ -218,6 +200,8 @@ func (t *table) checkKeepAlive() {
 	}
 	check(t.copyNodes(t.ipNodes))
 	check(t.copyNodes(t.idNodes))
+	logging.Info("keepalive: %d ip nodes, %d id nodes",
+		t.ipNodes.Size(), t.idNodes.Size())
 }
 
 func (t *table) copyNodes(m *hashmap.Map) []*node {

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"time"
 )
 
 const neighborSize = 8
@@ -105,10 +106,12 @@ func (dht *DHT) recv() {
 }
 
 func (dht *DHT) handler() {
+	tk := time.Tick(time.Second)
 	for {
 		select {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
+		case <-tk:
 		}
 	}
 }
