@@ -102,12 +102,10 @@ func (s *tableSlice) nodes() []*node {
 }
 
 type table struct {
-	dht            *DHT
-	ipNodes        *hashmap.Map // addr => node
-	idNodes        *hashmap.Map // id   => node
-	max            int
-	chDiscovery    chan *node
-	bootstrapAddrs []*net.UDPAddr
+	dht     *DHT
+	ipNodes *hashmap.Map // addr => node
+	idNodes *hashmap.Map // id   => node
+	max     int
 
 	// runtime
 	ctx    context.Context
@@ -116,11 +114,10 @@ type table struct {
 
 func newTable(dht *DHT, max int) *table {
 	tb := &table{
-		dht:         dht,
-		ipNodes:     hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
-		idNodes:     hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
-		max:         max,
-		chDiscovery: make(chan *node),
+		dht:     dht,
+		ipNodes: hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
+		idNodes: hashmap.New(&tableSlice{}, uint64(max), 5, 1, time.Second),
+		max:     max,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go tb.keepalive()
