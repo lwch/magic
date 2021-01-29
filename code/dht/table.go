@@ -324,9 +324,12 @@ func (t *table) findAddr(addr net.Addr) *node {
 		return nil
 	}
 	n := data.(*node)
-	bk := t.root.search(n.id)
-	if bk != nil {
-		bk.clearTimeout()
+	if t.even%2 == 0 {
+		bk := t.root.search(n.id)
+		if bk != nil {
+			bk.clearTimeout()
+		}
+		t.even++
 	}
 	return n
 }
