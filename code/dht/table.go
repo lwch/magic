@@ -15,6 +15,7 @@ import (
 )
 
 const nodeTimeout = time.Minute
+const nodeSendPing = 10 * time.Second
 
 type addrData struct {
 	addr string
@@ -201,7 +202,7 @@ func (bk *bucket) clearTimeout() []*node {
 			node.close()
 			removed = append(removed, node)
 			continue
-		} else if since >= nodeTimeout/2 {
+		} else if since >= nodeSendPing {
 			tx := node.sendPing()
 			node.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 		}
