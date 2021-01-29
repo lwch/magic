@@ -126,8 +126,8 @@ func (n *node) handleRequest(buf []byte) {
 		n.onFindNode(buf)
 	case data.TypeGetPeers:
 		n.onGetPeers(buf)
-		// case data.TypeAnnouncePeer:
-		// 	n.onAnnouncePeer(buf)
+	case data.TypeAnnouncePeer:
+		n.onAnnouncePeer(buf)
 	}
 }
 
