@@ -145,8 +145,8 @@ func (n *node) handleResponse(buf []byte, tx string) {
 		}
 	case data.TypeFindNode:
 		n.onFindNodeResp(buf)
-		// case data.TypeGetPeers:
-		// 	n.onGetPeersResp(buf, txr.hash)
+	case data.TypeGetPeers:
+		n.onGetPeersResp(buf, txr.hash)
 	}
 }
 
