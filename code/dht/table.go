@@ -239,8 +239,8 @@ func (t *table) remove(n *node) {
 
 func (t *table) findAddr(addr net.Addr) *node {
 	t.RLock()
-	defer t.RUnlock()
 	data := t.addrIndex[addr.String()]
+	t.RUnlock()
 	if data == nil {
 		return nil
 	}
@@ -260,8 +260,8 @@ func (t *table) findAddr(addr net.Addr) *node {
 
 func (t *table) findID(id hashType) *node {
 	t.RLock()
-	defer t.RUnlock()
 	bk := t.root.search(id)
+	t.RUnlock()
 	// free node
 	defer func() {
 		t.dht.even++
@@ -285,8 +285,9 @@ func (t *table) findID(id hashType) *node {
 
 func (t *table) neighbor(id hashType) []*node {
 	t.RLock()
-	defer t.RUnlock()
 	bk := t.root.search(id)
+	t.RUnlock()
+
 	t.Lock()
 	for _, node := range bk.clearTimeout() {
 		delete(t.addrIndex, node.addr.String())
