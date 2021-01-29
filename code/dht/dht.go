@@ -57,7 +57,7 @@ type DHT struct {
 	init     *initQueue
 	local    hashType
 	chRead   chan pkt
-	maxNodes int
+	minNodes int
 
 	// runtime
 	ctx    context.Context
@@ -69,12 +69,12 @@ func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
 		tx:       newTXMgr(cfg.TxTimeout),
-		init:     newInitQueue(cfg.MaxNodes),
+		init:     newInitQueue(cfg.MinNodes),
 		chRead:   make(chan pkt, 100),
-		maxNodes: cfg.MaxNodes,
+		minNodes: cfg.MinNodes,
 	}
 	rand.Read(dht.local[:])
-	dht.tb = newTable(dht, cfg.MaxNodes)
+	dht.tb = newTable(dht, 8)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
 	dht.listen, err = net.ListenUDP("udp", &net.UDPAddr{
@@ -131,7 +131,7 @@ func (dht *DHT) handler() {
 		case <-tk:
 			if dht.tb.size == 0 {
 				dht.tb.discovery()
-			} else if dht.tx.size() == 0 {
+			} else if dht.tx.size() < dht.minNodes {
 				dht.tb.discovery()
 			}
 		case <-dht.ctx.Done():
