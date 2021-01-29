@@ -136,6 +136,9 @@ func (dht *DHT) handler() {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
+			if dht.even%100 == 0 {
+				dht.tx.clear()
+			}
 			if dht.tb.size < dht.minNodes {
 				dht.tb.discovery(maxDiscoverySize)
 			} else if dht.tx.size() == 0 {
