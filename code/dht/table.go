@@ -13,6 +13,8 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+const nodeTimeout = 10 * time.Second
+
 type addrData struct {
 	addr string
 	n    *node
@@ -107,6 +109,14 @@ func (bk *bucket) isLeaf() bool {
 func (bk *bucket) addNode(n *node, k int) bool {
 	bk.Lock()
 	defer bk.Unlock()
+	nodes := make([]*node, 0, len(bk.nodes))
+	for _, node := range bk.nodes {
+		if time.Since(node.updated) >= nodeTimeout {
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	bk.nodes = nodes
 	if bk.exists(n.id) {
 		// TODO: update
 		return false
