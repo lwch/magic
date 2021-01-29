@@ -159,7 +159,10 @@ func newTable(dht *DHT, k int) *table {
 func (t *table) close() {
 }
 
-func (t *table) discoverySend(bk *bucket) {
+func (t *table) discoverySend(bk *bucket, limit *int) {
+	if *limit <= 0 {
+		return
+	}
 	if bk == nil {
 		return
 	}
@@ -167,15 +170,16 @@ func (t *table) discoverySend(bk *bucket) {
 		for _, node := range bk.nodes {
 			node.sendDiscovery(t.dht.listen, t.dht.local)
 		}
+		*limit -= len(bk.nodes)
 		return
 	}
-	t.discoverySend(bk.leaf[0])
-	t.discoverySend(bk.leaf[1])
+	t.discoverySend(bk.leaf[0], limit)
+	t.discoverySend(bk.leaf[1], limit)
 }
 
-func (t *table) discovery() {
+func (t *table) discovery(limit int) {
 	logging.Info("on discovery")
-	t.discoverySend(t.root)
+	t.discoverySend(t.root, &limit)
 }
 
 func (t *table) add(n *node) (ok bool) {

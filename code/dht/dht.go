@@ -13,6 +13,7 @@ import (
 )
 
 const neighborSize = 8
+const maxDiscoverySize = 8
 
 type hashType [20]byte
 
@@ -74,7 +75,7 @@ func New(cfg *Config) (*DHT, error) {
 		minNodes: cfg.MinNodes,
 	}
 	rand.Read(dht.local[:])
-	dht.tb = newTable(dht, 8)
+	dht.tb = newTable(dht, neighborSize)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
 	dht.listen, err = net.ListenUDP("udp", &net.UDPAddr{
@@ -100,7 +101,7 @@ func (dht *DHT) Discovery(addrs []*net.UDPAddr) {
 		node.sendDiscovery(dht.listen, dht.local)
 		dht.tb.add(node)
 	}
-	dht.tb.discovery()
+	dht.tb.discovery(maxDiscoverySize)
 }
 
 func (dht *DHT) recv() {
@@ -130,9 +131,9 @@ func (dht *DHT) handler() {
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
 			if dht.tb.size < dht.minNodes {
-				dht.tb.discovery()
+				dht.tb.discovery(maxDiscoverySize)
 			} else if dht.tx.size() == 0 {
-				dht.tb.discovery()
+				dht.tb.discovery(maxDiscoverySize)
 			}
 		case <-dht.ctx.Done():
 			return
