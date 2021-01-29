@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/lwch/magic/code/logging"
 )
@@ -146,6 +147,12 @@ func newTable(dht *DHT, k int) *table {
 		root: newBucket(emptyHash, 0),
 		k:    k,
 	}
+	go func() {
+		for {
+			logging.Info("table: %d nodes", tb.size)
+			time.Sleep(time.Second)
+		}
+	}()
 	return tb
 }
 
@@ -174,9 +181,6 @@ func (t *table) add(n *node) (ok bool) {
 	defer func() {
 		if ok {
 			t.size++
-		}
-		if t.size%1000 == 0 {
-			logging.Info("add: %d nodes", t.size)
 		}
 	}()
 	t.Lock()
