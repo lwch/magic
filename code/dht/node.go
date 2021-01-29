@@ -98,7 +98,7 @@ func (n *node) onRecv(buf []byte) {
 	}
 	switch {
 	case hdr.IsRequest():
-		// n.handleRequest(buf)
+		n.handleRequest(buf)
 	case hdr.IsResponse():
 		n.handleResponse(buf, hdr.Transaction)
 	}
@@ -110,7 +110,11 @@ func (n *node) handleRequest(buf []byte) {
 			ID [20]byte `bencode:"id"`
 		} `bencode:"a"`
 	}
-	bencode.Decode(buf, &req)
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("decode request failed" + n.errInfo(err))
+		return
+	}
 	if !n.id.equal(req.Data.ID) {
 		n.dht.tb.remove(n)
 		return
@@ -118,12 +122,12 @@ func (n *node) handleRequest(buf []byte) {
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
 		n.onPing()
-	case data.TypeFindNode:
-		n.onFindNode(buf)
-	case data.TypeGetPeers:
-		n.onGetPeers(buf)
-	case data.TypeAnnouncePeer:
-		n.onAnnouncePeer(buf)
+		// case data.TypeFindNode:
+		// 	n.onFindNode(buf)
+		// case data.TypeGetPeers:
+		// 	n.onGetPeers(buf)
+		// case data.TypeAnnouncePeer:
+		// 	n.onAnnouncePeer(buf)
 	}
 }
 

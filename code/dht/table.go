@@ -110,7 +110,7 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
 		since := time.Since(node.updated)
-		if since >= nodeTimeout {
+		if !node.isBootstrap && since >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			continue
 		}
@@ -205,7 +205,7 @@ func (bk *bucket) clearTimeout() {
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
 		since := time.Since(node.updated)
-		if since >= nodeTimeout {
+		if !node.isBootstrap && since >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			node.close()
 			continue
