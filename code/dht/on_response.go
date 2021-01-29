@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"net"
 	"strings"
 	"time"
@@ -79,7 +78,6 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 	err = bencode.Decode(buf, &found)
 	if err != nil {
 		logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
-		logging.Info("%s", hex.Dump(buf))
 		return
 	}
 	// n.dht.tk.add(found.Response.Token, hash, n.id)
