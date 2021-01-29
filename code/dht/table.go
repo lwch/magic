@@ -187,6 +187,19 @@ func (bk *bucket) equalBits(id hashType) bool {
 	return true
 }
 
+func (bk *bucket) clearTimeout() {
+	bk.Lock()
+	defer bk.Unlock()
+	nodes := make([]*node, 0, len(bk.nodes))
+	for _, node := range bk.nodes {
+		if time.Since(node.updated).Seconds() >= 10 {
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	bk.nodes = nodes
+}
+
 func newBucket(prefix hashType, bits int) *bucket {
 	return &bucket{
 		prefix: prefix,
@@ -235,6 +248,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 			node.sendDiscovery(t.dht.listen, t.dht.local)
 		}
 		*limit -= len(bk.nodes)
+		bk.clearTimeout()
 		return
 	}
 	if t.even%2 == 0 {
