@@ -141,7 +141,8 @@ func (dht *DHT) handler() {
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
 			dht.even++
-			if dht.even%1000 == 0 {
+			if dht.even%1000 == 0 ||
+				dht.tx.size() > 1000 {
 				dht.tx.clear()
 			}
 			if dht.tb.size < dht.minNodes {
