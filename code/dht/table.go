@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -261,6 +262,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		*limit -= len(bk.nodes)
 		for _, node := range bk.clearTimeout() {
 			t.addrIndex.Remove(node.addr.String())
+			t.size--
 		}
 		return
 	}
@@ -319,10 +321,19 @@ func (t *table) findAddr(addr net.Addr) *node {
 		return nil
 	}
 	n := data.(*node)
+	// free node
 	if t.even%2 == 0 {
 		bk := t.root.search(n.id)
 		for _, node := range bk.clearTimeout() {
 			t.addrIndex.Remove(node.addr.String())
+			t.size--
+		}
+		var id hashType
+		rand.Read(id[:])
+		bk = t.root.search(id)
+		for _, node := range bk.clearTimeout() {
+			t.addrIndex.Remove(node.addr.String())
+			t.size--
 		}
 		t.even++
 	}
@@ -333,9 +344,24 @@ func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
 	bk := t.root.search(id)
-	for _, node := range bk.clearTimeout() {
-		t.addrIndex.Remove(node.addr.String())
-	}
+	// free node
+	defer func() {
+		t.even++
+		if t.even%2 == 0 {
+			return
+		}
+		for _, node := range bk.clearTimeout() {
+			t.addrIndex.Remove(node.addr.String())
+			t.size--
+		}
+		var id hashType
+		rand.Read(id[:])
+		bk = t.root.search(id)
+		for _, node := range bk.clearTimeout() {
+			t.addrIndex.Remove(node.addr.String())
+			t.size--
+		}
+	}()
 	for _, node := range bk.nodes {
 		if node.id.equal(id) {
 			return node
@@ -350,6 +376,7 @@ func (t *table) neighbor(id hashType) []*node {
 	bk := t.root.search(id)
 	for _, node := range bk.clearTimeout() {
 		t.addrIndex.Remove(node.addr.String())
+		t.size--
 	}
 	return bk.nodes
 }
