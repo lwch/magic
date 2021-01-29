@@ -3,6 +3,7 @@ package dht
 import (
 	"bytes"
 	"encoding/binary"
+	"math/rand"
 	"net"
 
 	"github.com/lwch/bencode"
@@ -75,9 +76,11 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
-	// for _, node := range nodes {
-	// 	node.sendGet(req.Data.Hash)
-	// }
+	if rand.Intn(100) < 1 {
+		for _, node := range nodes {
+			node.sendGet(req.Data.Hash)
+		}
+	}
 }
 
 func (n *node) onAnnouncePeer(buf []byte) {
