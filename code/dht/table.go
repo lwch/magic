@@ -112,6 +112,7 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
 		if time.Since(node.updated) >= nodeTimeout {
+			logging.Debug("timeout: %s", node.id.String())
 			continue
 		}
 		nodes = append(nodes, node)
