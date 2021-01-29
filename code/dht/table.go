@@ -2,12 +2,93 @@ package dht
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/binary"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/lwch/hashmap"
 	"github.com/lwch/magic/code/logging"
 )
+
+type addrData struct {
+	addr string
+	n    *node
+}
+
+type addrSlice struct {
+	sync.Mutex
+	data []addrData
+	size int64
+}
+
+func (s *addrSlice) Make(size uint64) {
+	s.data = make([]addrData, size)
+}
+
+func (s *addrSlice) Resize(size uint64) {
+	s.Lock()
+	defer s.Unlock()
+	data := make([]addrData, size)
+	copy(data, s.data)
+	s.data = data
+}
+
+func (s *addrSlice) Size() uint64 {
+	return uint64(s.size)
+}
+
+func (s *addrSlice) Cap() uint64 {
+	return uint64(len(s.data))
+}
+
+func (s *addrSlice) Hash(key interface{}) uint64 {
+	sum := md5.Sum([]byte(key.(string)))
+	a := binary.BigEndian.Uint64(sum[:])
+	b := binary.BigEndian.Uint64(sum[8:])
+	return a + b
+}
+
+func (s *addrSlice) KeyEqual(idx uint64, key interface{}) bool {
+	node := s.data[int(idx)%len(s.data)]
+	return node.addr == key.(string)
+}
+
+func (s *addrSlice) Empty(idx uint64) bool {
+	node := s.data[int(idx)%len(s.data)]
+	return len(node.addr) == 0
+}
+
+func (s *addrSlice) Set(idx uint64, key, value interface{}, deadline time.Time, update bool) bool {
+	target := &s.data[int(idx)%len(s.data)]
+	target.addr = key.(string)
+	target.n = value.(*node)
+	if !update {
+		atomic.AddInt64(&s.size, 1)
+	}
+	return true
+}
+
+func (s *addrSlice) Get(idx uint64) interface{} {
+	node := s.data[int(idx)%len(s.data)]
+	if s.Timeout(idx) {
+		return nil
+	}
+	return node.n
+}
+
+func (s *addrSlice) Reset(idx uint64) {
+	node := &s.data[int(idx)%len(s.data)]
+	node.addr = ""
+	node.n = nil
+	atomic.AddInt64(&s.size, -1)
+}
+
+func (s *addrSlice) Timeout(idx uint64) bool {
+	return false
+}
 
 type bucket struct {
 	sync.RWMutex
@@ -135,17 +216,19 @@ func newBucket(prefix hashType, bits int) *bucket {
 
 type table struct {
 	sync.RWMutex
-	dht  *DHT
-	root *bucket
-	k    int
-	size int
+	dht       *DHT
+	root      *bucket
+	addrIndex *hashmap.Map
+	k         int
+	size      int
 }
 
 func newTable(dht *DHT, k int) *table {
 	tb := &table{
-		dht:  dht,
-		root: newBucket(emptyHash, 0),
-		k:    k,
+		dht:       dht,
+		root:      newBucket(emptyHash, 0),
+		addrIndex: hashmap.New(&addrSlice{}, 1000, 5, 0),
+		k:         k,
 	}
 	go func() {
 		for {
@@ -182,17 +265,16 @@ func (t *table) discovery(limit int) {
 }
 
 func (t *table) add(n *node) (ok bool) {
-	defer func() {
-		if ok {
-			t.size++
-		}
-	}()
 	t.Lock()
 	defer t.Unlock()
 	next := t.root
 	for idx := 0; idx < len(n.id)*8; idx++ {
 		if next.isLeaf() {
-			return next.addNode(n, t.k)
+			ok := next.addNode(n, t.k)
+			if ok {
+				t.addrIndex.Set(n.addr.String(), n)
+				t.size++
+			}
 		}
 		next = next.leaf[n.id.bit(idx)]
 	}
@@ -210,13 +292,18 @@ func (t *table) remove(n *node) {
 			continue
 		}
 		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
+		t.addrIndex.Remove(n.addr.String())
 	}
 }
 
 func (t *table) findAddr(addr net.Addr) *node {
 	t.RLock()
 	defer t.RUnlock()
-	return t.root.searchAddr(addr)
+	data := t.addrIndex.Get(addr.String())
+	if data == nil {
+		return nil
+	}
+	return data.(*node)
 }
 
 func (t *table) findID(id hashType) *node {
