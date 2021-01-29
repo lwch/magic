@@ -73,7 +73,7 @@ func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
 		tx:       newTXMgr(cfg.TxTimeout),
-		init:     newInitQueue(cfg.MinNodes),
+		init:     newInitQueue(),
 		chRead:   make(chan pkt, 100),
 		minNodes: cfg.MinNodes,
 	}
