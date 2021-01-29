@@ -187,26 +187,6 @@ func (bk *bucket) equalBits(id hashType) bool {
 	return true
 }
 
-func (bk *bucket) searchAddr(addr net.Addr) *node {
-	if !bk.isLeaf() {
-		n := bk.leaf[0].searchAddr(addr)
-		if n != nil {
-			return n
-		}
-		n = bk.leaf[1].searchAddr(addr)
-		if n != nil {
-			return n
-		}
-		return nil
-	}
-	for _, node := range bk.nodes {
-		if node.addr.String() == addr.String() {
-			return node
-		}
-	}
-	return nil
-}
-
 func newBucket(prefix hashType, bits int) *bucket {
 	return &bucket{
 		prefix: prefix,
@@ -221,6 +201,7 @@ type table struct {
 	addrIndex *hashmap.Map
 	k         int
 	size      int
+	even      int
 }
 
 func newTable(dht *DHT, k int) *table {
@@ -256,8 +237,14 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		*limit -= len(bk.nodes)
 		return
 	}
-	t.discoverySend(bk.leaf[0], limit)
-	t.discoverySend(bk.leaf[1], limit)
+	if t.even%2 == 0 {
+		t.discoverySend(bk.leaf[0], limit)
+		t.discoverySend(bk.leaf[1], limit)
+	} else {
+		t.discoverySend(bk.leaf[1], limit)
+		t.discoverySend(bk.leaf[0], limit)
+	}
+	t.even++
 }
 
 func (t *table) discovery(limit int) {
