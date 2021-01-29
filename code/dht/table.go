@@ -178,7 +178,6 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 }
 
 func (t *table) discovery(limit int) {
-	logging.Info("on discovery")
 	t.discoverySend(t.root, &limit)
 }
 
