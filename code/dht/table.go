@@ -2,9 +2,10 @@ package dht
 
 import (
 	"bytes"
-	"context"
 	"net"
 	"sync"
+
+	"github.com/lwch/magic/code/logging"
 )
 
 type bucket struct {
@@ -29,7 +30,7 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	}
 	if len(bk.nodes) >= k {
 		loopSplit(bk, k)
-		target := bk.searchAdd(n)
+		target := bk.search(n.id)
 		if target.exists(n.id) {
 			return false
 		}
@@ -59,11 +60,11 @@ func (bk *bucket) exists(id hashType) bool {
 	return false
 }
 
-func (bk *bucket) searchAdd(n *node) *bucket {
+func (bk *bucket) search(id hashType) *bucket {
 	if bk.leaf[0] == nil && bk.leaf[1] == nil {
 		return bk
 	}
-	return bk.leaf[n.id.bit(bk.bits)].searchAdd(n)
+	return bk.leaf[id.bit(bk.bits)].search(id)
 }
 
 func (bk *bucket) split() {
@@ -104,6 +105,26 @@ func (bk *bucket) equalBits(id hashType) bool {
 	return true
 }
 
+func (bk *bucket) searchAddr(addr net.Addr) *node {
+	if !bk.isLeaf() {
+		n := bk.leaf[0].searchAddr(addr)
+		if n != nil {
+			return n
+		}
+		n = bk.leaf[1].searchAddr(addr)
+		if n != nil {
+			return n
+		}
+		return nil
+	}
+	for _, node := range bk.nodes {
+		if node.addr.String() == addr.String() {
+			return node
+		}
+	}
+	return nil
+}
+
 func newBucket(prefix hashType, bits int) *bucket {
 	return &bucket{
 		prefix: prefix,
@@ -117,10 +138,6 @@ type table struct {
 	root *bucket
 	k    int
 	size int
-
-	// runtime
-	ctx    context.Context
-	cancel context.CancelFunc
 }
 
 func newTable(dht *DHT, k int) *table {
@@ -129,18 +146,39 @@ func newTable(dht *DHT, k int) *table {
 		root: newBucket(emptyHash, 0),
 		k:    k,
 	}
-	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	return tb
 }
 
 func (t *table) close() {
-	t.cancel()
+}
+
+func (t *table) discoverySend(bk *bucket) {
+	if bk == nil {
+		return
+	}
+	if bk.isLeaf() {
+		for _, node := range bk.nodes {
+			node.sendDiscovery(t.dht.listen, t.dht.local)
+		}
+		return
+	}
+	t.discoverySend(bk.leaf[0])
+	t.discoverySend(bk.leaf[1])
 }
 
 func (t *table) discovery() {
+	t.discoverySend(t.root)
 }
 
-func (t *table) add(n *node) bool {
+func (t *table) add(n *node) (ok bool) {
+	defer func() {
+		if ok {
+			t.size++
+		}
+		if t.size%1000 == 0 {
+			logging.Info("add: %d nodes", t.size)
+		}
+	}()
 	t.Lock()
 	defer t.Unlock()
 	next := t.root
@@ -155,13 +193,33 @@ func (t *table) add(n *node) bool {
 
 func (t *table) remove(n *node) {
 	n.close()
+
+	t.Lock()
+	defer t.Unlock()
+	bk := t.root.search(n.id)
+	for i, node := range bk.nodes {
+		if !node.id.equal(n.id) {
+			continue
+		}
+		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
+	}
 }
 
 func (t *table) findAddr(addr net.Addr) *node {
-	return nil
+	t.RLock()
+	defer t.RUnlock()
+	return t.root.searchAddr(addr)
 }
 
 func (t *table) findID(id hashType) *node {
+	t.RLock()
+	defer t.RUnlock()
+	bk := t.root.search(id)
+	for _, node := range bk.nodes {
+		if node.id.equal(id) {
+			return node
+		}
+	}
 	return nil
 }
 
