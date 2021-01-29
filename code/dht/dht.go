@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 const neighborSize = 8
@@ -142,6 +144,9 @@ func (dht *DHT) handler() {
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
+	if bytes.Contains(buf, []byte(data.TypeAnnouncePeer)) {
+		logging.Info("recv: %s", hex.Dump(buf))
+	}
 	node := dht.tb.findAddr(addr)
 	if node == nil {
 		var hdr data.Hdr
