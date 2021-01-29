@@ -107,16 +107,6 @@ func (bk *bucket) isLeaf() bool {
 func (bk *bucket) addNode(n *node, k int) bool {
 	bk.Lock()
 	defer bk.Unlock()
-	nodes := make([]*node, 0, len(bk.nodes))
-	for _, node := range bk.nodes {
-		since := time.Since(node.updated)
-		if !node.isBootstrap && since >= nodeTimeout {
-			logging.Debug("timeout: %s", node.id.String())
-			continue
-		}
-		nodes = append(nodes, node)
-	}
-	bk.nodes = nodes
 	if bk.exists(n.id) {
 		// TODO: update
 		return false
@@ -199,15 +189,17 @@ func (bk *bucket) equalBits(id hashType) bool {
 	return true
 }
 
-func (bk *bucket) clearTimeout() {
+func (bk *bucket) clearTimeout() []*node {
 	bk.Lock()
 	defer bk.Unlock()
+	removed := make([]*node, 0, len(bk.nodes))
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
 		since := time.Since(node.updated)
 		if !node.isBootstrap && since >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			node.close()
+			removed = append(removed, node)
 			continue
 		} else if since >= nodeTimeout/2 {
 			tx := node.sendPing()
@@ -216,6 +208,7 @@ func (bk *bucket) clearTimeout() {
 		nodes = append(nodes, node)
 	}
 	bk.nodes = nodes
+	return removed
 }
 
 func newBucket(prefix hashType, bits int) *bucket {
@@ -266,7 +259,9 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 			node.sendDiscovery()
 		}
 		*limit -= len(bk.nodes)
-		bk.clearTimeout()
+		for _, node := range bk.clearTimeout() {
+			t.addrIndex.Remove(node.addr.String())
+		}
 		return
 	}
 	if t.even%2 == 0 {
@@ -326,8 +321,8 @@ func (t *table) findAddr(addr net.Addr) *node {
 	n := data.(*node)
 	if t.even%2 == 0 {
 		bk := t.root.search(n.id)
-		if bk != nil {
-			bk.clearTimeout()
+		for _, node := range bk.clearTimeout() {
+			t.addrIndex.Remove(node.addr.String())
 		}
 		t.even++
 	}
@@ -338,7 +333,9 @@ func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
 	bk := t.root.search(id)
-	bk.clearTimeout()
+	for _, node := range bk.clearTimeout() {
+		t.addrIndex.Remove(node.addr.String())
+	}
 	for _, node := range bk.nodes {
 		if node.id.equal(id) {
 			return node
@@ -351,6 +348,8 @@ func (t *table) neighbor(id hashType) []*node {
 	t.RLock()
 	defer t.RUnlock()
 	bk := t.root.search(id)
-	bk.clearTimeout()
+	for _, node := range bk.clearTimeout() {
+		t.addrIndex.Remove(node.addr.String())
+	}
 	return bk.nodes
 }
