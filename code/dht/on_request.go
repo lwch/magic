@@ -43,7 +43,7 @@ func (n *node) onFindNode(buf []byte) {
 		logging.Error("decode find_node request failed" + n.errInfo(err))
 		return
 	}
-	nodes := n.dht.tb.neighbor(req.Data.Target, neighborSize)
+	nodes := n.dht.tb.neighbor(req.Data.Target)
 	if len(nodes) < neighborSize {
 		logging.Error("not enough nodes")
 		return
@@ -68,8 +68,8 @@ func (n *node) onGetPeers(buf []byte) {
 		return
 	}
 	// logging.Info("get_peers: %x", req.Data.Hash)
-	nodes := n.dht.tb.neighbor(req.Data.Hash, neighborSize)
-	if len(nodes) < neighborSize {
+	nodes := n.dht.tb.neighbor(req.Data.Hash)
+	if len(nodes) == 0 {
 		logging.Error("not enough nodes")
 		return
 	}

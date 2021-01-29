@@ -335,6 +335,10 @@ func (t *table) findID(id hashType) *node {
 	return nil
 }
 
-func (t *table) neighbor(id hashType, n int) []*node {
-	return nil
+func (t *table) neighbor(id hashType) []*node {
+	t.RLock()
+	defer t.RUnlock()
+	bk := t.root.search(id)
+	bk.clearTimeout()
+	return bk.nodes
 }
