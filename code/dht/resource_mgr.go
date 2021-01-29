@@ -136,6 +136,7 @@ func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read header failed: %v", err)
 	}
+	logging.Info("payload length: %d", l)
 	payload := make([]byte, l)
 	_, err = io.ReadFull(c, payload)
 	if err != nil {
