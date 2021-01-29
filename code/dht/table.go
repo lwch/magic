@@ -108,12 +108,14 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	bk.Lock()
 	defer bk.Unlock()
 	if bk.exists(n.id) {
+		// TODO: update
 		return false
 	}
 	if len(bk.nodes) >= k {
 		loopSplit(bk, k)
 		target := bk.search(n.id)
 		if target.exists(n.id) {
+			// TODO: update
 			return false
 		}
 		target.nodes = append(target.nodes, n)
@@ -193,6 +195,8 @@ func (bk *bucket) clearTimeout() {
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
 		if time.Since(node.updated).Seconds() >= 10 {
+			logging.Debug("timeout: %s", node.id.String())
+			node.close()
 			continue
 		}
 		nodes = append(nodes, node)
