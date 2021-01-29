@@ -52,5 +52,5 @@ func (mgr *resMgr) loopGet() {
 }
 
 func (mgr *resMgr) get(r resReq) {
-	logging.Info("get resource from %s:%d", r.id.String(), r.ip.String(), r.port)
+	logging.Info("get resource %s from %s:%d", r.id.String(), r.ip.String(), r.port)
 }
