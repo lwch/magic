@@ -71,6 +71,7 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		return
 	}
 	if len(notfound.Response.Nodes) > 0 {
+		n.onFindNodeResp(buf)
 		return
 	}
 	var found data.GetPeersResponse
