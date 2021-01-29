@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
-	"github.com/lwch/magic/code/logging"
 )
 
 const neighborSize = 8
@@ -114,9 +112,6 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
-		if bytes.Contains(buf[:n], []byte(data.TypeAnnouncePeer)) {
-			logging.Info("recv: %s", hex.Dump(buf))
-		}
 		data := make([]byte, n)
 		copy(data, buf[:n])
 		select {
@@ -136,7 +131,8 @@ func (dht *DHT) handler() {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
-			if dht.even%100 == 0 {
+			dht.even++
+			if dht.even%1000 == 0 {
 				dht.tx.clear()
 			}
 			if dht.tb.size < dht.minNodes {
