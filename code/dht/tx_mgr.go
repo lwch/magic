@@ -97,12 +97,13 @@ func (s *txSlice) Timeout(idx uint64) bool {
 type txMgr struct {
 	// txs *hashmap.Map
 	sync.RWMutex
-	txs map[string]tx
+	txs     map[string]tx
+	timeout time.Duration
 }
 
 func newTXMgr(timeout time.Duration) *txMgr {
 	// return &txMgr{txs: hashmap.New(&txSlice{}, 1000, 5, timeout)}
-	return &txMgr{txs: make(map[string]tx)}
+	return &txMgr{txs: make(map[string]tx), timeout: timeout}
 }
 
 func (mgr *txMgr) close() {
@@ -123,10 +124,11 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 	mgr.Lock()
 	defer mgr.Unlock()
 	mgr.txs[id] = tx{
-		id:     id,
-		hash:   hash,
-		remote: remote,
-		t:      t,
+		id:       id,
+		hash:     hash,
+		remote:   remote,
+		t:        t,
+		deadline: time.Now().Add(mgr.timeout),
 	}
 }
 
@@ -152,5 +154,11 @@ func (mgr *txMgr) find(id string) *tx {
 
 func (mgr *txMgr) clear() {
 	// mgr.txs.Clear()
-	// TODO
+	mgr.Lock()
+	defer mgr.Unlock()
+	for k, tx := range mgr.txs {
+		if time.Now().After(tx.deadline) {
+			delete(mgr.txs, k)
+		}
+	}
 }
