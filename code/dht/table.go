@@ -204,7 +204,7 @@ func (bk *bucket) clearTimeout() {
 	defer bk.Unlock()
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
-		if time.Since(node.updated).Seconds() >= 10 {
+		if time.Since(node.updated) >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			node.close()
 			continue
