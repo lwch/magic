@@ -150,4 +150,5 @@ func (mgr *resMgr) get(r resReq) {
 		logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
+	logging.Info("*GET* %s success", r.id.String())
 }
