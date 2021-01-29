@@ -174,6 +174,7 @@ func (t *table) discoverySend(bk *bucket) {
 }
 
 func (t *table) discovery() {
+	logging.Info("on discovery")
 	t.discoverySend(t.root)
 }
 
