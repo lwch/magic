@@ -2,12 +2,14 @@ package dht
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"time"
 
+	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
@@ -99,6 +101,32 @@ func readHandshake(c net.Conn) error {
 	return nil
 }
 
+func sendExtHeader(c net.Conn) error {
+	// http://www.bittorrent.org/beps/bep_0009.html
+	var data struct {
+		M struct {
+			Action int `bencode:"ut_metadata"`
+		} `bencode:"m"`
+	}
+	data.M.Action = 3
+	raw, err := bencode.Encode(data)
+	if err != nil {
+		return err
+	}
+	// http://www.bittorrent.org/beps/bep_0010.html
+	raw = append([]byte{20, 0}, raw...)
+	c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	err = binary.Write(c, binary.BigEndian, uint32(len(raw)))
+	if err != nil {
+		return err
+	}
+	_, err = c.Write(raw)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (mgr *resMgr) get(r resReq) {
 	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
 	c, err := net.DialTimeout("tcp", r.addr(), 5*time.Second)
@@ -115,6 +143,11 @@ func (mgr *resMgr) get(r resReq) {
 	err = readHandshake(c)
 	if err != nil {
 		logging.Error("*GET* read handshake failed" + r.errInfo(err))
+		return
+	}
+	err = sendExtHeader(c)
+	if err != nil {
+		logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
 }
