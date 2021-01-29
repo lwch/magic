@@ -14,7 +14,7 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-const nodeTimeout = 10 * time.Second
+const nodeTimeout = time.Minute
 
 type addrData struct {
 	addr string
