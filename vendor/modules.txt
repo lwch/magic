@@ -1,9 +1,6 @@
 # github.com/lwch/bencode v0.0.0-20210127074636-f93efac218c6
 ## explicit
 github.com/lwch/bencode
-# github.com/lwch/hashmap v0.0.0-20210128040713-cc6041454252
-## explicit
-github.com/lwch/hashmap
 # github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d
 ## explicit
 github.com/lwch/runtime

@@ -2,94 +2,16 @@ package dht
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/binary"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/lwch/hashmap"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
 const nodeTimeout = time.Minute
 const nodeSendPing = 10 * time.Second
-
-type addrData struct {
-	addr string
-	n    *node
-}
-
-type addrSlice struct {
-	sync.Mutex
-	data []addrData
-	size int64
-}
-
-func (s *addrSlice) Make(size uint64) {
-	s.data = make([]addrData, size)
-}
-
-func (s *addrSlice) Resize(size uint64) {
-	s.Lock()
-	defer s.Unlock()
-	data := make([]addrData, size)
-	copy(data, s.data)
-	s.data = data
-}
-
-func (s *addrSlice) Size() uint64 {
-	return uint64(s.size)
-}
-
-func (s *addrSlice) Cap() uint64 {
-	return uint64(len(s.data))
-}
-
-func (s *addrSlice) Hash(key interface{}) uint64 {
-	sum := md5.Sum([]byte(key.(string)))
-	a := binary.BigEndian.Uint64(sum[:])
-	b := binary.BigEndian.Uint64(sum[8:])
-	return a + b
-}
-
-func (s *addrSlice) KeyEqual(idx uint64, key interface{}) bool {
-	node := s.data[int(idx)%len(s.data)]
-	return node.addr == key.(string)
-}
-
-func (s *addrSlice) Empty(idx uint64) bool {
-	node := s.data[int(idx)%len(s.data)]
-	return len(node.addr) == 0
-}
-
-func (s *addrSlice) Set(idx uint64, key, value interface{}, deadline time.Time, update bool) bool {
-	target := &s.data[int(idx)%len(s.data)]
-	target.addr = key.(string)
-	target.n = value.(*node)
-	if !update {
-		atomic.AddInt64(&s.size, 1)
-	}
-	return true
-}
-
-func (s *addrSlice) Get(idx uint64) interface{} {
-	node := s.data[int(idx)%len(s.data)]
-	return node.n
-}
-
-func (s *addrSlice) Reset(idx uint64) {
-	node := &s.data[int(idx)%len(s.data)]
-	node.addr = ""
-	node.n = nil
-	atomic.AddInt64(&s.size, -1)
-}
-
-func (s *addrSlice) Timeout(idx uint64) bool {
-	return false
-}
 
 type bucket struct {
 	sync.RWMutex
@@ -223,7 +145,7 @@ type table struct {
 	sync.RWMutex
 	dht       *DHT
 	root      *bucket
-	addrIndex *hashmap.Map
+	addrIndex map[string]*node
 	k         int
 	size      int
 }
@@ -232,7 +154,7 @@ func newTable(dht *DHT, k int) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
-		addrIndex: hashmap.New(&addrSlice{}, 1000, 5, 0),
+		addrIndex: make(map[string]*node),
 		k:         k,
 	}
 	go func() {
@@ -259,10 +181,12 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 			node.sendDiscovery()
 		}
 		*limit -= len(bk.nodes)
+		t.Lock()
 		for _, node := range bk.clearTimeout() {
-			t.addrIndex.Remove(node.addr.String())
+			delete(t.addrIndex, node.addr.String())
 			t.size--
 		}
+		t.Unlock()
 		return
 	}
 	if t.dht.even%2 == 0 {
@@ -287,7 +211,7 @@ func (t *table) add(n *node) bool {
 		if next.isLeaf() {
 			ok := next.addNode(n, t.k)
 			if ok {
-				t.addrIndex.Set(n.addr.String(), n)
+				t.addrIndex[n.addr.String()] = n
 				t.size++
 			}
 			return ok
@@ -308,7 +232,7 @@ func (t *table) remove(n *node) {
 			continue
 		}
 		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
-		t.addrIndex.Remove(n.addr.String())
+		delete(t.addrIndex, n.addr.String())
 		t.size--
 	}
 }
@@ -316,21 +240,22 @@ func (t *table) remove(n *node) {
 func (t *table) findAddr(addr net.Addr) *node {
 	t.RLock()
 	defer t.RUnlock()
-	data := t.addrIndex.Get(addr.String())
+	data := t.addrIndex[addr.String()]
 	if data == nil {
 		return nil
 	}
-	n := data.(*node)
 	// free node
 	if t.dht.even%2 == 0 {
-		bk := t.root.search(n.id)
+		bk := t.root.search(data.id)
+		t.Lock()
 		for _, node := range bk.clearTimeout() {
-			t.addrIndex.Remove(node.addr.String())
+			delete(t.addrIndex, node.addr.String())
 			t.size--
 		}
+		t.Unlock()
 	}
 	t.dht.even++
-	return n
+	return data
 }
 
 func (t *table) findID(id hashType) *node {
@@ -343,10 +268,12 @@ func (t *table) findID(id hashType) *node {
 		if t.dht.even%2 == 0 {
 			return
 		}
+		t.Lock()
 		for _, node := range bk.clearTimeout() {
-			t.addrIndex.Remove(node.addr.String())
+			delete(t.addrIndex, node.addr.String())
 			t.size--
 		}
+		t.Unlock()
 	}()
 	for _, node := range bk.nodes {
 		if node.id.equal(id) {
@@ -360,9 +287,11 @@ func (t *table) neighbor(id hashType) []*node {
 	t.RLock()
 	defer t.RUnlock()
 	bk := t.root.search(id)
+	t.Lock()
 	for _, node := range bk.clearTimeout() {
-		t.addrIndex.Remove(node.addr.String())
+		delete(t.addrIndex, node.addr.String())
 		t.size--
 	}
+	t.Unlock()
 	return bk.nodes
 }
