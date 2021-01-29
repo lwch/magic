@@ -151,7 +151,20 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 		}
 		switch {
 		case hdr.IsRequest():
-			return
+			var req struct {
+				data.Hdr
+				Data struct {
+					ID [20]byte `bencode:"id"`
+				} `bencode:"a"`
+			}
+			err = bencode.Decode(buf, &req)
+			if err != nil {
+				return
+			}
+			node = dht.tb.findID(req.Data.ID)
+			if node == nil {
+				return
+			}
 		case hdr.IsResponse():
 			node = dht.init.find(hdr.Transaction)
 			if node == nil {
