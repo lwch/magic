@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lwch/hashmap"
+	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
@@ -75,9 +76,6 @@ func (s *addrSlice) Set(idx uint64, key, value interface{}, deadline time.Time, 
 
 func (s *addrSlice) Get(idx uint64) interface{} {
 	node := s.data[int(idx)%len(s.data)]
-	if s.Timeout(idx) {
-		return nil
-	}
 	return node.n
 }
 
@@ -111,7 +109,8 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	defer bk.Unlock()
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
-		if time.Since(node.updated) >= nodeTimeout {
+		since := time.Since(node.updated)
+		if since >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			continue
 		}
@@ -205,10 +204,14 @@ func (bk *bucket) clearTimeout() {
 	defer bk.Unlock()
 	nodes := make([]*node, 0, len(bk.nodes))
 	for _, node := range bk.nodes {
-		if time.Since(node.updated) >= nodeTimeout {
+		since := time.Since(node.updated)
+		if since >= nodeTimeout {
 			logging.Debug("timeout: %s", node.id.String())
 			node.close()
 			continue
+		} else if since >= nodeTimeout/2 {
+			tx := node.sendPing()
+			node.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 		}
 		nodes = append(nodes, node)
 	}
@@ -260,7 +263,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 	}
 	if bk.isLeaf() {
 		for _, node := range bk.nodes {
-			node.sendDiscovery(t.dht.listen, t.dht.local)
+			node.sendDiscovery()
 		}
 		*limit -= len(bk.nodes)
 		bk.clearTimeout()

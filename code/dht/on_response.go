@@ -47,7 +47,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 			Port: int(port),
 		}
 		go func(node *node) {
-			tx := node.sendPing(n.dht.listen, n.dht.local)
+			tx := node.sendPing()
 			n.dht.init.push(tx, node)
 			defer n.dht.init.unset(tx)
 			select {

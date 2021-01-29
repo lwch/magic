@@ -44,15 +44,15 @@ func (n *node) close() {
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
-func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
+func (n *node) sendDiscovery() {
 	var next [20]byte
 	rand.Read(next[:])
-	pkt, tx, err := data.FindReq(id, next)
+	pkt, tx, err := data.FindReq(n.dht.local, next)
 	if err != nil {
 		logging.Error("build find_node packet failed" + n.errInfo(err))
 		return
 	}
-	_, err = c.WriteTo(pkt, &n.addr)
+	_, err = n.dht.listen.WriteTo(pkt, &n.addr)
 	if err != nil {
 		logging.Error("send find_node packet failed" + n.errInfo(err))
 		return
@@ -60,13 +60,13 @@ func (n *node) sendDiscovery(c *net.UDPConn, id hashType) {
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
-func (n *node) sendPing(c *net.UDPConn, local hashType) string {
-	buf, tx, err := data.PingReq(local)
+func (n *node) sendPing() string {
+	buf, tx, err := data.PingReq(n.dht.local)
 	if err != nil {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return ""
 	}
-	_, err = c.WriteTo(buf, &n.addr)
+	_, err = n.dht.listen.WriteTo(buf, &n.addr)
 	if err != nil {
 		logging.Error("send get_peers packet failed" + n.errInfo(err))
 		return ""
@@ -74,13 +74,13 @@ func (n *node) sendPing(c *net.UDPConn, local hashType) string {
 	return tx
 }
 
-func (n *node) sendGet(c *net.UDPConn, local, hash hashType) {
-	buf, tx, err := data.GetPeers(local, hash)
+func (n *node) sendGet(hash hashType) {
+	buf, tx, err := data.GetPeers(n.dht.local, hash)
 	if err != nil {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return
 	}
-	_, err = c.WriteTo(buf, &n.addr)
+	_, err = n.dht.listen.WriteTo(buf, &n.addr)
 	if err != nil {
 		logging.Error("send get_peers packet failed" + n.errInfo(err))
 		return

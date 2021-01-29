@@ -98,7 +98,7 @@ func (dht *DHT) Close() {
 func (dht *DHT) Discovery(addrs []*net.UDPAddr) {
 	for _, addr := range addrs {
 		node := newBootstrapNode(dht, *addr)
-		node.sendDiscovery(dht.listen, dht.local)
+		node.sendDiscovery()
 		dht.tb.add(node)
 	}
 	dht.tb.discovery(maxDiscoverySize)
