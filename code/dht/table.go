@@ -310,6 +310,7 @@ func (t *table) remove(n *node) {
 		}
 		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
 		t.addrIndex.Remove(n.addr.String())
+		t.size--
 	}
 }
 
