@@ -264,7 +264,7 @@ func (t *table) discovery(limit int) {
 	t.discoverySend(t.root, &limit)
 }
 
-func (t *table) add(n *node) (ok bool) {
+func (t *table) add(n *node) bool {
 	t.Lock()
 	defer t.Unlock()
 	next := t.root
@@ -275,6 +275,7 @@ func (t *table) add(n *node) (ok bool) {
 				t.addrIndex.Set(n.addr.String(), n)
 				t.size++
 			}
+			return ok
 		}
 		next = next.leaf[n.id.bit(idx)]
 	}
