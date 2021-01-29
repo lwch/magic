@@ -61,7 +61,7 @@ type DHT struct {
 	local    hashType
 	chRead   chan pkt
 	minNodes int
-	even     int
+	even     int // speed control
 
 	// runtime
 	ctx    context.Context
@@ -114,6 +114,9 @@ func (dht *DHT) recv() {
 		if err != nil {
 			continue
 		}
+		if bytes.Contains(buf[:n], []byte(data.TypeAnnouncePeer)) {
+			logging.Info("recv: %s", hex.Dump(buf))
+		}
 		data := make([]byte, n)
 		copy(data, buf[:n])
 		select {
@@ -145,9 +148,6 @@ func (dht *DHT) handler() {
 }
 
 func (dht *DHT) handleData(addr net.Addr, buf []byte) {
-	if bytes.Contains(buf, []byte(data.TypeAnnouncePeer)) {
-		logging.Info("recv: %s", hex.Dump(buf))
-	}
 	node := dht.tb.findAddr(addr)
 	if node == nil {
 		var hdr data.Hdr
