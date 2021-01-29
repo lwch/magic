@@ -61,6 +61,7 @@ type DHT struct {
 	local    hashType
 	chRead   chan pkt
 	minNodes int
+	even     int
 
 	// runtime
 	ctx    context.Context

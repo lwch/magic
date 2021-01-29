@@ -226,7 +226,6 @@ type table struct {
 	addrIndex *hashmap.Map
 	k         int
 	size      int
-	even      int
 }
 
 func newTable(dht *DHT, k int) *table {
@@ -266,14 +265,14 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		}
 		return
 	}
-	if t.even%2 == 0 {
+	if t.dht.even%2 == 0 {
 		t.discoverySend(bk.leaf[0], limit)
 		t.discoverySend(bk.leaf[1], limit)
 	} else {
 		t.discoverySend(bk.leaf[1], limit)
 		t.discoverySend(bk.leaf[0], limit)
 	}
-	t.even++
+	t.dht.even++
 }
 
 func (t *table) discovery(limit int) {
@@ -323,14 +322,14 @@ func (t *table) findAddr(addr net.Addr) *node {
 	}
 	n := data.(*node)
 	// free node
-	if t.even%2 == 0 {
+	if t.dht.even%2 == 0 {
 		bk := t.root.search(n.id)
 		for _, node := range bk.clearTimeout() {
 			t.addrIndex.Remove(node.addr.String())
 			t.size--
 		}
-		t.even++
 	}
+	t.dht.even++
 	return n
 }
 
@@ -340,8 +339,8 @@ func (t *table) findID(id hashType) *node {
 	bk := t.root.search(id)
 	// free node
 	defer func() {
-		t.even++
-		if t.even%2 == 0 {
+		t.dht.even++
+		if t.dht.even%2 == 0 {
 			return
 		}
 		for _, node := range bk.clearTimeout() {
