@@ -65,10 +65,6 @@ func (n *node) onGetPeers(buf []byte) {
 	}
 	// logging.Info("get_peers: %x", req.Data.Hash)
 	nodes := n.dht.tb.neighbor(req.Data.Hash)
-	if len(nodes) == 0 {
-		logging.Error("not enough nodes")
-		return
-	}
 	data, err := data.GetPeersNotFound(n.dht.local, data.Rand(16), string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
