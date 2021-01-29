@@ -100,10 +100,10 @@ func readHandshake(c net.Conn) error {
 }
 
 func (mgr *resMgr) get(r resReq) {
-	logging.Info("get resource %s from %s", r.id.String(), r.addr())
+	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
 	c, err := net.DialTimeout("tcp", r.addr(), 5*time.Second)
 	if err != nil {
-		logging.Error("connect to %s failed" + r.errInfo(err))
+		logging.Error("*GET* connect failed" + r.errInfo(err))
 		return
 	}
 	defer c.Close()
