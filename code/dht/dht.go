@@ -161,9 +161,13 @@ func (dht *DHT) handleData(addr net.Addr, buf []byte) {
 			if err != nil {
 				return
 			}
+			if bytes.Equal(req.Data.ID[:], emptyHash[:]) {
+				return
+			}
 			node = dht.tb.findID(req.Data.ID)
 			if node == nil {
-				return
+				node = newNode(dht, req.Data.ID, *addr.(*net.UDPAddr))
+				dht.tb.add(node)
 			}
 		case hdr.IsResponse():
 			node = dht.init.find(hdr.Transaction)
