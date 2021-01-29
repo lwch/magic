@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"encoding/binary"
-	"net"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -94,11 +93,6 @@ func (n *node) onAnnouncePeer(buf []byte) {
 	if req.Data.Implied != 0 {
 		port = int(req.Data.Port)
 	}
-	addr := net.TCPAddr{
-		IP:   n.addr.IP,
-		Port: port,
-	}
-	logging.Info("announce_peer found: hash=%x, addr=%s", req.Data.Hash, addr.String())
 	data, err := data.AnnouncePeer(n.dht.local)
 	if err != nil {
 		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
@@ -109,4 +103,9 @@ func (n *node) onAnnouncePeer(buf []byte) {
 		logging.Error("send announce_peer packet failed" + n.errInfo(err))
 		return
 	}
+	n.dht.res.push(resReq{
+		id:   req.Data.Hash,
+		ip:   n.addr.IP,
+		port: uint16(port),
+	})
 }

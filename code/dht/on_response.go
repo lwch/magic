@@ -92,10 +92,10 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 			continue
 		}
 		port := binary.BigEndian.Uint16([]byte(peer[4:]))
-		addr := net.TCPAddr{
-			IP:   net.IP(ip[:]),
-			Port: int(port),
-		}
-		logging.Info("get_peers found: hash=%s, addr=%s", hash.String(), addr.String())
+		n.dht.res.push(resReq{
+			id:   hash,
+			ip:   net.IP(ip[:]),
+			port: port,
+		})
 	}
 }

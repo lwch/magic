@@ -2,6 +2,7 @@ package dht
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -148,6 +149,10 @@ type table struct {
 	addrIndex map[string]*node
 	k         int
 	size      int
+
+	// runtime
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func newTable(dht *DHT, k int) *table {
@@ -157,16 +162,22 @@ func newTable(dht *DHT, k int) *table {
 		addrIndex: make(map[string]*node),
 		k:         k,
 	}
+	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go func() {
 		for {
-			logging.Info("table: %d nodes", tb.size)
-			time.Sleep(time.Second)
+			select {
+			case <-time.After(time.Second):
+				logging.Info("table: %d nodes", tb.size)
+			case <-tb.ctx.Done():
+				return
+			}
 		}
 	}()
 	return tb
 }
 
 func (t *table) close() {
+	t.cancel()
 }
 
 func (t *table) discoverySend(bk *bucket, limit *int) {

@@ -56,6 +56,7 @@ type DHT struct {
 	tb       *table
 	tx       *txMgr
 	init     *initQueue
+	res      *resMgr
 	local    hashType
 	chRead   chan pkt
 	minNodes int
@@ -72,6 +73,7 @@ func New(cfg *Config) (*DHT, error) {
 	dht := &DHT{
 		tx:       newTXMgr(cfg.TxTimeout),
 		init:     newInitQueue(),
+		res:      newResMgr(),
 		chRead:   make(chan pkt, 100),
 		minNodes: cfg.MinNodes,
 	}
@@ -92,6 +94,7 @@ func (dht *DHT) Close() {
 	dht.listen.Close()
 	dht.tb.close()
 	dht.tx.close()
+	dht.res.close()
 	dht.cancel()
 }
 
@@ -108,6 +111,12 @@ func (dht *DHT) Discovery(addrs []*net.UDPAddr) {
 func (dht *DHT) recv() {
 	buf := make([]byte, 65535)
 	for {
+		select {
+		case <-dht.ctx.Done():
+			return
+		default:
+		}
+		dht.listen.SetReadDeadline(time.Now().Add(time.Second))
 		n, addr, err := dht.listen.ReadFrom(buf)
 		if err != nil {
 			continue
