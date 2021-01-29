@@ -3,6 +3,7 @@ package dht
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -127,6 +128,22 @@ func sendExtHeader(c net.Conn) error {
 	return nil
 }
 
+func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
+	// http://www.bittorrent.org/beps/bep_0010.html
+	c.SetReadDeadline(time.Now().Add(10 * time.Second))
+	var l uint32
+	err := binary.Read(c, binary.BigEndian, &l)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("read header failed: %v", err)
+	}
+	payload := make([]byte, l)
+	_, err = io.ReadFull(c, payload)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
+	}
+	return payload[0], payload[1], payload[2:], nil
+}
+
 func (mgr *resMgr) get(r resReq) {
 	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
 	c, err := net.DialTimeout("tcp", r.addr(), 5*time.Second)
@@ -150,5 +167,13 @@ func (mgr *resMgr) get(r resReq) {
 		logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
-	logging.Info("*GET* %s success", r.id.String())
+	for {
+		msgID, extID, data, err := readPeerData(c)
+		if err != nil {
+			logging.Error("*GET* read peer data failed" + r.errInfo(err))
+			return
+		}
+		logging.Info("msg_id=%d, ext_id=%d", msgID, extID)
+		logging.Info("read_data: %s", hex.Dump(data))
+	}
 }
