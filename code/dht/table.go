@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
-	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -329,13 +328,6 @@ func (t *table) findAddr(addr net.Addr) *node {
 			t.addrIndex.Remove(node.addr.String())
 			t.size--
 		}
-		var id hashType
-		rand.Read(id[:])
-		bk = t.root.search(id)
-		for _, node := range bk.clearTimeout() {
-			t.addrIndex.Remove(node.addr.String())
-			t.size--
-		}
 		t.even++
 	}
 	return n
@@ -351,13 +343,6 @@ func (t *table) findID(id hashType) *node {
 		if t.even%2 == 0 {
 			return
 		}
-		for _, node := range bk.clearTimeout() {
-			t.addrIndex.Remove(node.addr.String())
-			t.size--
-		}
-		var id hashType
-		rand.Read(id[:])
-		bk = t.root.search(id)
 		for _, node := range bk.clearTimeout() {
 			t.addrIndex.Remove(node.addr.String())
 			t.size--
