@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lwch/hashmap"
 	"github.com/lwch/magic/code/data"
 )
 
@@ -96,38 +95,62 @@ func (s *txSlice) Timeout(idx uint64) bool {
 }
 
 type txMgr struct {
-	txs *hashmap.Map
+	// txs *hashmap.Map
+	sync.RWMutex
+	txs map[string]tx
 }
 
 func newTXMgr(timeout time.Duration) *txMgr {
-	return &txMgr{txs: hashmap.New(&txSlice{}, 1000, 5, timeout)}
+	// return &txMgr{txs: hashmap.New(&txSlice{}, 1000, 5, timeout)}
+	return &txMgr{txs: make(map[string]tx)}
 }
 
 func (mgr *txMgr) close() {
 }
 
 func (mgr *txMgr) size() int {
-	return int(mgr.txs.Size())
+	// return int(mgr.txs.Size())
+	return len(mgr.txs)
 }
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
-	mgr.txs.Set(id, tx{
+	// mgr.txs.Set(id, tx{
+	// 	id:     id,
+	// 	hash:   hash,
+	// 	remote: remote,
+	// 	t:      t,
+	// })
+	mgr.Lock()
+	defer mgr.Unlock()
+	mgr.txs[id] = tx{
 		id:     id,
 		hash:   hash,
 		remote: remote,
 		t:      t,
-	})
+	}
 }
 
 func (mgr *txMgr) find(id string) *tx {
-	node := mgr.txs.Get(id)
-	if node == nil {
-		return nil
+	// node := mgr.txs.Get(id)
+	// if node == nil {
+	// 	return nil
+	// }
+	// mgr.txs.Remove(id)
+	// return node.(*tx)
+
+	mgr.RLock()
+	tx, ok := mgr.txs[id]
+	mgr.RUnlock()
+	if ok {
+		mgr.Lock()
+		delete(mgr.txs, id)
+		mgr.Unlock()
+		return &tx
 	}
-	mgr.txs.Remove(id)
-	return node.(*tx)
+	return nil
 }
 
 func (mgr *txMgr) clear() {
-	mgr.txs.Clear()
+	// mgr.txs.Clear()
+	// TODO
 }
