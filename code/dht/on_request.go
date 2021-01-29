@@ -75,6 +75,9 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
+	for _, node := range nodes {
+		node.sendGet(req.Data.Hash)
+	}
 }
 
 func (n *node) onAnnouncePeer(buf []byte) {
