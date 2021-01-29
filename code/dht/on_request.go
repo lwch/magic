@@ -44,10 +44,6 @@ func (n *node) onFindNode(buf []byte) {
 		return
 	}
 	nodes := n.dht.tb.neighbor(req.Data.Target)
-	if len(nodes) < neighborSize {
-		logging.Error("not enough nodes")
-		return
-	}
 	data, err := data.FindRep(n.dht.local, string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build find_node response packet faield" + n.errInfo(err))
