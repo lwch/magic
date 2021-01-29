@@ -323,13 +323,19 @@ func (t *table) findAddr(addr net.Addr) *node {
 	if data == nil {
 		return nil
 	}
-	return data.(*node)
+	n := data.(*node)
+	bk := t.root.search(n.id)
+	if bk != nil {
+		bk.clearTimeout()
+	}
+	return n
 }
 
 func (t *table) findID(id hashType) *node {
 	t.RLock()
 	defer t.RUnlock()
 	bk := t.root.search(id)
+	bk.clearTimeout()
 	for _, node := range bk.nodes {
 		if node.id.equal(id) {
 			return node
