@@ -74,6 +74,7 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 		n.onFindNodeResp(buf)
 		return
 	}
+	return
 	var found data.GetPeersResponse
 	err = bencode.Decode(buf, &found)
 	if err != nil {
