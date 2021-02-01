@@ -42,7 +42,6 @@ func compactNodes(nodes []*node) []byte {
 }
 
 func (n *node) onFindNode(buf []byte) {
-	return
 	var req data.FindRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {
@@ -69,17 +68,17 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("decode get_peers request failed" + n.errInfo(err))
 		return
 	}
-	raw, err := data.GetPeersNotFound(req.Transaction, req.Data.Hash, data.Rand(16), "")
-	if err != nil {
-		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
-		return
-	}
-	_, err = n.dht.listen.WriteTo(raw, &n.addr)
-	if err != nil {
-		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
-		return
-	}
-	return
+	// raw, err := data.GetPeersNotFound(req.Transaction, req.Data.Hash, data.Rand(16), "")
+	// if err != nil {
+	// 	logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
+	// 	return
+	// }
+	// _, err = n.dht.listen.WriteTo(raw, &n.addr)
+	// if err != nil {
+	// 	logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
+	// 	return
+	// }
+	// return
 	// logging.Info("get_peers: %x", req.Data.Hash)
 	nodes := n.dht.tb.neighbor(req.Data.Hash)
 	data, err := data.GetPeersNotFound(req.Transaction, n.dht.local, data.Rand(16), string(compactNodes(nodes)))
