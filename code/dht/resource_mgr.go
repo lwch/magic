@@ -205,6 +205,7 @@ func requestPiece(c net.Conn, n int) error {
 			c.RemoteAddr().String(), err)
 		return err
 	}
+	logging.Info("piece: %s", hex.Dump(data))
 	return sendMessage(c, extMsgID, extData, data)
 }
 
