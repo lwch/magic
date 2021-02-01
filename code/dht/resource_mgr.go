@@ -156,7 +156,7 @@ func sendExtHeader(c net.Conn) error {
 			Action byte `bencode:"ut_metadata"`
 		} `bencode:"m"`
 	}
-	data.M.Action = extData
+	data.M.Action = extRequest
 	raw, err := bencode.Encode(data)
 	if err != nil {
 		return err
