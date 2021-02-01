@@ -99,7 +99,7 @@ func (n *node) onAnnouncePeer(buf []byte) {
 	if req.Data.Implied != 0 {
 		port = uint16(n.addr.Port)
 	}
-	data, err := data.AnnouncePeer(req.Transaction, req.Data.Hash)
+	data, err := data.AnnouncePeer(req.Transaction, n.dht.local)
 	if err != nil {
 		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
 		return
