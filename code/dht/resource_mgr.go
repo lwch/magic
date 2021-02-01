@@ -231,7 +231,10 @@ func (mgr *resMgr) get(r resReq) {
 		return
 	}
 	for i := 0; i < pieces; i++ {
-		requestPiece(c, i)
+		err = requestPiece(c, i)
+		if err != nil {
+			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
+		}
 	}
 	for {
 		msgID, extID, data, err := readMessage(c)
