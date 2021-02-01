@@ -10,6 +10,7 @@ import (
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 const neighborSize = 8
@@ -129,6 +130,7 @@ func (dht *DHT) recv() {
 			addr: addr,
 		}:
 		default:
+			logging.Info("drop packet")
 		}
 	}
 }
