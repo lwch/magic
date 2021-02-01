@@ -187,6 +187,7 @@ func readExtHeader(c net.Conn) (int, error) {
 	if pieces == 0 {
 		pieces = 1
 	}
+	logging.Info("ut_metadata=%d", hdr.Data.Type)
 	return pieces, nil
 }
 
@@ -239,6 +240,7 @@ func (mgr *resMgr) get(r resReq) {
 		err = requestPiece(c, i)
 		if err != nil {
 			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
+			return
 		}
 	}
 	logging.Info("*GET* request pieces done, pieces=%d"+r.logInfo(), pieces)
