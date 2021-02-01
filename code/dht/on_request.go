@@ -36,6 +36,7 @@ func compactNodes(nodes []*node) []byte {
 }
 
 func (n *node) onFindNode(buf []byte) {
+	return
 	var req data.FindRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {
