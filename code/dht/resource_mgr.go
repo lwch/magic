@@ -199,7 +199,7 @@ func requestPiece(c net.Conn, n int) error {
 			c.RemoteAddr().String(), err)
 		return err
 	}
-	return sendMessage(c, extMsgID, extRequest, data)
+	return sendMessage(c, extMsgID, extData, data)
 }
 
 func (mgr *resMgr) get(r resReq) {
