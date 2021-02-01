@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
@@ -121,6 +122,9 @@ func (dht *DHT) recv() {
 		n, addr, err := dht.listen.ReadFrom(buf)
 		if err != nil {
 			continue
+		}
+		if bytes.Contains(buf[:n], []byte(data.TypeAnnouncePeer)) {
+			logging.Info("announce: %s", hex.Dump(buf[:n]))
 		}
 		data := make([]byte, n)
 		copy(data, buf[:n])
