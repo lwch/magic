@@ -236,13 +236,15 @@ func (mgr *resMgr) get(r resReq) {
 		logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
 	}
-	for i := 0; i < pieces; i++ {
-		err = requestPiece(c, i)
-		if err != nil {
-			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
-			return
+	go func(pieces int) {
+		for i := 0; i < pieces; i++ {
+			err = requestPiece(c, i)
+			if err != nil {
+				logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
+				return
+			}
 		}
-	}
+	}(pieces)
 	logging.Info("*GET* request pieces done, pieces=%d"+r.logInfo(), pieces)
 	for {
 		msgID, extID, data, err := readMessage(c)
