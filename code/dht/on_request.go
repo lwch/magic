@@ -95,11 +95,11 @@ func (n *node) onAnnouncePeer(buf []byte) {
 		logging.Error("decode announce_peer request failed" + n.errInfo(err))
 		return
 	}
-	port := n.addr.Port
-	if req.Data.Implied == 0 {
-		port = int(req.Data.Port)
+	port := req.Data.Port
+	if req.Data.Implied != 0 {
+		port = uint16(n.addr.Port)
 	}
-	data, err := data.AnnouncePeer(req.Transaction, n.dht.local)
+	data, err := data.AnnouncePeer(req.Transaction, req.Data.Hash)
 	if err != nil {
 		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
 		return
@@ -112,6 +112,6 @@ func (n *node) onAnnouncePeer(buf []byte) {
 	n.dht.res.push(resReq{
 		id:   req.Data.Hash,
 		ip:   n.addr.IP,
-		port: uint16(port),
+		port: port,
 	})
 }
