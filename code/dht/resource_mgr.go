@@ -153,10 +153,10 @@ func sendExtHeader(c net.Conn) error {
 	// http://www.bittorrent.org/beps/bep_0009.html
 	var data struct {
 		M struct {
-			Action int `bencode:"ut_metadata"`
+			Action byte `bencode:"ut_metadata"`
 		} `bencode:"m"`
 	}
-	data.M.Action = 3
+	data.M.Action = extData
 	raw, err := bencode.Encode(data)
 	if err != nil {
 		return err
