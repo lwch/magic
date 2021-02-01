@@ -96,7 +96,7 @@ func (n *node) onAnnouncePeer(buf []byte) {
 		return
 	}
 	port := n.addr.Port
-	if req.Data.Implied != 0 {
+	if req.Data.Implied == 0 {
 		port = int(req.Data.Port)
 	}
 	data, err := data.AnnouncePeer(req.Transaction, n.dht.local)
