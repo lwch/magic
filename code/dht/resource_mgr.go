@@ -136,13 +136,38 @@ func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read header failed: %v", err)
 	}
-	logging.Info("payload length: %d", l)
+	if l < 2 {
+		return 0, 0, nil, errors.New("invalid data of length")
+	}
 	payload := make([]byte, l)
 	_, err = io.ReadFull(c, payload)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
 	}
 	return payload[0], payload[1], payload[2:], nil
+}
+
+func readExtHeader(c net.Conn) error {
+	_, _, data, err := readPeerData(c)
+	if err != nil {
+		return err
+	}
+	// http://www.bittorrent.org/beps/bep_0010.html
+	var hdr struct {
+		Port    uint16 `bencode:"p"`
+		Version string `bencode:"v"`
+		IP      string `bencode:"yourip"`
+		Data    struct {
+			Type int `bencode:"ut_metadata"` // http://www.bittorrent.org/beps/bep_0009.html
+		} `bencode:"m"`
+		Size int `bencode:"metadata_size"`
+	}
+	err = bencode.Decode(data, &hdr)
+	if err != nil {
+		return err
+	}
+	logging.Info("readExtHeader: type=%d, port=%d, size=%d", hdr.Data.Type, hdr.Port, hdr.Size)
+	return nil
 }
 
 func (mgr *resMgr) get(r resReq) {
@@ -166,6 +191,11 @@ func (mgr *resMgr) get(r resReq) {
 	err = sendExtHeader(c)
 	if err != nil {
 		logging.Error("*GET* send ext header failed" + r.errInfo(err))
+		return
+	}
+	err = readExtHeader(c)
+	if err != nil {
+		logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
 	}
 	for {
