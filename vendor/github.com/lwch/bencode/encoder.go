@@ -36,6 +36,9 @@ func Encode(data interface{}) ([]byte, error) {
 }
 
 func int64Str(i int64) string {
+	if i == 0 {
+		return "0"
+	}
 	neg := i < 0
 	if i < 0 {
 		i = -i
@@ -56,6 +59,9 @@ func int64Str(i int64) string {
 }
 
 func uint64Str(i uint64) string {
+	if i == 0 {
+		return "0"
+	}
 	var str []byte
 	for i != 0 {
 		str = append(str, byte(i%10+'0'))
