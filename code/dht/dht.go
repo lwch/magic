@@ -75,7 +75,7 @@ func New(cfg *Config) (*DHT, error) {
 		tx:       newTXMgr(cfg.TxTimeout),
 		init:     newInitQueue(),
 		res:      newResMgr(),
-		chRead:   make(chan pkt, 100),
+		chRead:   make(chan pkt, 1000),
 		minNodes: cfg.MinNodes,
 	}
 	rand.Read(dht.local[:])
