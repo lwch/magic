@@ -38,9 +38,10 @@ func FindReq(id, target [20]byte) ([]byte, string, error) {
 }
 
 // FindRep build find_node response packet
-func FindRep(id [20]byte, nodes string) ([]byte, error) {
+func FindRep(tx string, id [20]byte, nodes string) ([]byte, error) {
 	var rep FindResponse
-	rep.Hdr = newHdr(response)
+	rep.Transaction = tx
+	rep.Type = response
 	rep.Response.ID = id
 	rep.Response.Nodes = nodes
 	data, err := bencode.Encode(rep)

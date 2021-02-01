@@ -9,8 +9,14 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-func (n *node) onPing() {
-	data, err := data.PingRep(n.dht.local)
+func (n *node) onPing(buf []byte) {
+	var req data.Hdr
+	err := bencode.Decode(buf, &req)
+	if err != nil {
+		logging.Error("decode ping request failed" + n.errInfo(err))
+		return
+	}
+	data, err := data.PingRep(req.Transaction, n.dht.local)
 	if err != nil {
 		logging.Error("build ping response packet failed" + n.errInfo(err))
 		return
@@ -44,7 +50,7 @@ func (n *node) onFindNode(buf []byte) {
 		return
 	}
 	nodes := n.dht.tb.neighbor(req.Data.Target)
-	data, err := data.FindRep(n.dht.local, string(compactNodes(nodes)))
+	data, err := data.FindRep(req.Transaction, n.dht.local, string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build find_node response packet faield" + n.errInfo(err))
 		return
@@ -63,7 +69,7 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("decode get_peers request failed" + n.errInfo(err))
 		return
 	}
-	raw, err := data.GetPeersNotFound(req.Data.Hash, data.Rand(16), "")
+	raw, err := data.GetPeersNotFound(req.Transaction, req.Data.Hash, data.Rand(16), "")
 	if err != nil {
 		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
 		return
@@ -76,7 +82,7 @@ func (n *node) onGetPeers(buf []byte) {
 	return
 	// logging.Info("get_peers: %x", req.Data.Hash)
 	nodes := n.dht.tb.neighbor(req.Data.Hash)
-	data, err := data.GetPeersNotFound(n.dht.local, data.Rand(16), string(compactNodes(nodes)))
+	data, err := data.GetPeersNotFound(req.Transaction, n.dht.local, data.Rand(16), string(compactNodes(nodes)))
 	if err != nil {
 		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
 		return
@@ -105,7 +111,7 @@ func (n *node) onAnnouncePeer(buf []byte) {
 	if req.Data.Implied != 0 {
 		port = int(req.Data.Port)
 	}
-	data, err := data.AnnouncePeer(n.dht.local)
+	data, err := data.AnnouncePeer(req.Transaction, n.dht.local)
 	if err != nil {
 		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
 		return

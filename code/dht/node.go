@@ -121,7 +121,7 @@ func (n *node) handleRequest(buf []byte) {
 	}
 	switch data.ParseReqType(buf) {
 	case data.TypePing:
-		n.onPing()
+		n.onPing(buf)
 	case data.TypeFindNode:
 		n.onFindNode(buf)
 	case data.TypeGetPeers:

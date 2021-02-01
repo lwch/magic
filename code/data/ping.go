@@ -53,8 +53,10 @@ func PingReq(id [20]byte) ([]byte, string, error) {
 }
 
 // PingRep build ping response packet
-func PingRep(id [20]byte) ([]byte, error) {
-	return bencode.Encode(PingResponse{
-		Hdr: newHdr(response),
-	})
+func PingRep(tx string, id [20]byte) ([]byte, error) {
+	var rep PingResponse
+	rep.Transaction = tx
+	rep.Type = response
+	rep.Response.ID = id
+	return bencode.Encode(rep)
 }
