@@ -63,7 +63,7 @@ func (n *node) onGetPeers(buf []byte) {
 		logging.Error("decode get_peers request failed" + n.errInfo(err))
 		return
 	}
-	raw, err := data.GetPeersNotFound(n.dht.local, data.Rand(16), "")
+	raw, err := data.GetPeersNotFound(req.Data.Hash, data.Rand(16), "")
 	if err != nil {
 		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
 		return
