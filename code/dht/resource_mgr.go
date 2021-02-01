@@ -41,6 +41,11 @@ func (r resReq) errInfo(err error) string {
 		r.id.String(), r.addr(), err)
 }
 
+func (r resReq) logInfo() string {
+	return fmt.Sprintf("; id=%s, addr=%s",
+		r.id.String(), r.addr())
+}
+
 type resMgr struct {
 	chReq chan resReq
 
@@ -236,6 +241,7 @@ func (mgr *resMgr) get(r resReq) {
 			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
 		}
 	}
+	logging.Info("*GET* request pieces done" + r.logInfo())
 	for {
 		msgID, extID, data, err := readMessage(c)
 		if err != nil {
