@@ -62,6 +62,7 @@ type DHT struct {
 	chRead   chan pkt
 	minNodes int
 	even     int // speed control
+	Out      chan MetaInfo
 
 	// runtime
 	ctx    context.Context
@@ -74,12 +75,13 @@ func New(cfg *Config) (*DHT, error) {
 	dht := &DHT{
 		tx:       newTXMgr(cfg.TxTimeout),
 		init:     newInitQueue(),
-		res:      newResMgr(),
 		chRead:   make(chan pkt, 1000),
 		minNodes: cfg.MinNodes,
+		Out:      make(chan MetaInfo),
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, neighborSize, cfg.ShowTableInterval)
+	dht.res = newResMgr(dht)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
 	dht.listen, err = net.ListenUDP("udp", &net.UDPAddr{

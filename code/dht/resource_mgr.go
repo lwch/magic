@@ -46,7 +46,24 @@ func (r resReq) logInfo() string {
 		r.id.String(), r.addr())
 }
 
+// MetaFile file info
+type MetaFile struct {
+	Path   []string `json:"path"`
+	Length int      `json:"length"`
+}
+
+// MetaInfo meta info
+type MetaInfo struct {
+	Hash       string     `json:"hash"`
+	Peer       string     `json:"peer"`
+	Name       string     `json:"name"`
+	Length     int        `json:"length"`
+	MetaLength int        `json:"meta_length"`
+	Files      []MetaFile `json:"files"`
+}
+
 type resMgr struct {
+	dht   *DHT
 	chReq chan resReq
 
 	// runtime
@@ -54,8 +71,9 @@ type resMgr struct {
 	cancel context.CancelFunc
 }
 
-func newResMgr() *resMgr {
+func newResMgr(dht *DHT) *resMgr {
 	mgr := &resMgr{
+		dht:   dht,
 		chReq: make(chan resReq, 100),
 	}
 	mgr.ctx, mgr.cancel = context.WithCancel(context.Background())
@@ -75,7 +93,7 @@ func (mgr *resMgr) loopGet() {
 	for {
 		select {
 		case req := <-mgr.chReq:
-			go mgr.get(req)
+			go mgr.get(req, mgr.dht.Out)
 		case <-mgr.ctx.Done():
 			return
 		}
@@ -215,7 +233,7 @@ func requestPiece(c net.Conn, metaData byte, n int) error {
 	return sendMessage(c, extMsgID, metaData, data)
 }
 
-func (mgr *resMgr) get(r resReq) {
+func (mgr *resMgr) get(r resReq, out chan MetaInfo) {
 	c, err := net.DialTimeout("tcp", r.addr(), 5*time.Second)
 	if err != nil {
 		// logging.Error("*GET* connect failed" + r.errInfo(err))
@@ -300,13 +318,20 @@ func (mgr *resMgr) get(r resReq) {
 				logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
 				return
 			}
-			if len(files.Name) > 0 {
-				logging.Info("recv: hash=%s, name=%s, length=%d, meta_length=%d",
-					r.id.String(), files.Name, files.Length, metaSize)
-			}
+			var list []MetaFile
 			for _, file := range files.Files {
-				logging.Info("recv: hash=%s, path=%v, length=%d",
-					r.id.String(), file.Path, file.Length)
+				list = append(list, MetaFile{
+					Path:   file.Path,
+					Length: file.Length,
+				})
+			}
+			out <- MetaInfo{
+				Hash:       r.id.String(),
+				Peer:       r.addr(),
+				Name:       files.Name,
+				Length:     files.Length,
+				MetaLength: metaSize,
+				Files:      list,
 			}
 			return
 		}

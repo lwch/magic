@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lwch/magic/code/dht"
+	"github.com/lwch/magic/code/logging"
 	"github.com/lwch/runtime"
 )
 
@@ -37,5 +39,8 @@ func main() {
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
-	<-make(chan int)
+	for info := range mgr.Out {
+		data, _ := json.Marshal(info)
+		logging.Info("%s", string(data))
+	}
 }
