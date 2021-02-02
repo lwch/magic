@@ -39,8 +39,13 @@ func main() {
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
+	uniq := make(map[string]bool)
 	for info := range mgr.Out {
+		if uniq[info.Hash] {
+			continue
+		}
 		data, _ := json.Marshal(info)
 		logging.Info("info: %s", string(data))
+		uniq[info.Hash] = true
 	}
 }
