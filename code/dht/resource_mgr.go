@@ -220,12 +220,12 @@ func (mgr *resMgr) get(r resReq) {
 	defer c.Close()
 	_, err = c.Write(makeHandshake(r.id))
 	if err != nil {
-		logging.Error("*GET* send handshake failed" + r.errInfo(err))
+		// logging.Error("*GET* send handshake failed" + r.errInfo(err))
 		return
 	}
 	err = readHandshake(c)
 	if err != nil {
-		logging.Error("*GET* read handshake failed" + r.errInfo(err))
+		// logging.Error("*GET* read handshake failed" + r.errInfo(err))
 		return
 	}
 	err = sendExtHeader(c)
