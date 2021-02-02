@@ -291,8 +291,8 @@ func (mgr *resMgr) get(r resReq) {
 				Length      int    `bencode:"length"`
 				Name        string `bencode:"name"`
 				Files       []struct {
-					Length int      `bencode:"length"`
-					Path   []string `bencode:"path"`
+					Length int         `bencode:"length"`
+					Path   interface{} `bencode:"path"`
 				} `bencode:"files"`
 			}
 			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
