@@ -299,8 +299,8 @@ func (mgr *resMgr) get(r resReq) {
 				return
 			}
 			if len(files.Name) > 0 {
-				logging.Info("recv: hash=%s, name=%s, length=%d",
-					r.id.String(), files.Name, files.Length)
+				logging.Info("recv: hash=%s, name=%s, length=%d, meta_length=%d",
+					r.id.String(), files.Name, files.Length, metaSize)
 			}
 			for _, file := range files.Files {
 				logging.Info("recv: hash=%s, path=%v, length=%d",
