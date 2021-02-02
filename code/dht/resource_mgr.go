@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -244,14 +245,30 @@ func (mgr *resMgr) get(r resReq) {
 			return
 		}
 	}
-	logging.Info("*GET* request pieces done, pieces=%d"+r.logInfo(), pieces)
 	for {
-		msgID, extID, data, err := readMessage(c)
+		msgID, _, data, err := readMessage(c)
 		if err != nil {
 			logging.Error("*GET* read peer data failed" + r.errInfo(err))
 			return
 		}
-		logging.Info("msg_id=%d, ext_id=%d", msgID, extID)
-		logging.Info("read_data: %s", hex.Dump(data))
+		if msgID != extMsgID {
+			continue
+		}
+		buffer := bytes.NewBuffer(data)
+		// http://www.bittorrent.org/beps/bep_0009.html#data
+		var dec struct {
+			Type  byte `bencode:"msg_type"`
+			Piece int  `bencode:"piece"`
+			Size  int  `bencode:"total_size"`
+		}
+		err = bencode.NewDecoder(buffer).Decode(&dec)
+		if err != nil {
+			logging.Error("*GET* decode data failed" + r.errInfo(err))
+			return
+		}
+		if dec.Type != extData {
+			continue
+		}
+		logging.Info("left_data=%s", hex.Dump(buffer.Bytes()))
 	}
 }
