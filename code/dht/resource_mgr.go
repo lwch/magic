@@ -282,6 +282,7 @@ func (mgr *resMgr) get(r resReq) {
 		err = dec.Decode(&files)
 		if err != nil {
 			if strings.Contains(err.Error(), "unexpected EOF") {
+				logging.Info("unexpected EOF")
 				continue
 			}
 			logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
