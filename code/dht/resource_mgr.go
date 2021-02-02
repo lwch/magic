@@ -59,7 +59,7 @@ type MetaInfo struct {
 	Name       string     `json:"name"`
 	Length     int        `json:"length"`
 	MetaLength int        `json:"meta_length"`
-	Files      []MetaFile `json:"files"`
+	Files      []MetaFile `json:"files,omitempty"`
 }
 
 type resMgr struct {
