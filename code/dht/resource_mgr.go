@@ -157,7 +157,7 @@ func sendExtHeader(c net.Conn) error {
 			Action byte `bencode:"ut_metadata"`
 		} `bencode:"m"`
 	}
-	data.M.Action = extData
+	data.M.Action = 1
 	raw, err := bencode.Encode(data)
 	if err != nil {
 		return err
@@ -165,10 +165,10 @@ func sendExtHeader(c net.Conn) error {
 	return sendMessage(c, extMsgID, 0, raw)
 }
 
-func readExtHeader(c net.Conn) (int, error) {
+func readExtHeader(c net.Conn) (byte, int, error) {
 	_, _, data, err := readMessage(c)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	// http://www.bittorrent.org/beps/bep_0010.html
 	var hdr struct {
@@ -182,18 +182,18 @@ func readExtHeader(c net.Conn) (int, error) {
 	}
 	err = bencode.Decode(data, &hdr)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	pieces := hdr.Size / blockSize
 	if pieces == 0 {
 		pieces = 1
 	}
 	logging.Info("ut_metadata=%d", hdr.Data.Type)
-	return pieces, nil
+	return byte(hdr.Data.Type), pieces, nil
 }
 
 // http://www.bittorrent.org/beps/bep_0009.html#request
-func requestPiece(c net.Conn, n int) error {
+func requestPiece(c net.Conn, metaData byte, n int) error {
 	var req struct {
 		Type  byte `bencode:"msg_type"`
 		Piece int  `bencode:"piece"`
@@ -206,8 +206,7 @@ func requestPiece(c net.Conn, n int) error {
 			c.RemoteAddr().String(), err)
 		return err
 	}
-	logging.Info("piece: %s", hex.Dump(data))
-	return sendMessage(c, extMsgID, extData, data)
+	return sendMessage(c, extMsgID, metaData, data)
 }
 
 func (mgr *resMgr) get(r resReq) {
@@ -233,13 +232,13 @@ func (mgr *resMgr) get(r resReq) {
 		logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
-	pieces, err := readExtHeader(c)
+	metaData, pieces, err := readExtHeader(c)
 	if err != nil {
 		logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
 	}
 	for i := 0; i < pieces; i++ {
-		err = requestPiece(c, i)
+		err = requestPiece(c, metaData, i)
 		if err != nil {
 			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
 			return
