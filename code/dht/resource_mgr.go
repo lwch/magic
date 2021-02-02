@@ -166,10 +166,10 @@ func sendExtHeader(c net.Conn) error {
 	return sendMessage(c, extMsgID, 0, raw)
 }
 
-func readExtHeader(c net.Conn) (byte, int, error) {
+func readExtHeader(c net.Conn) (byte, int, int, error) {
 	_, _, data, err := readMessage(c)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	// http://www.bittorrent.org/beps/bep_0010.html
 	var hdr struct {
@@ -183,13 +183,13 @@ func readExtHeader(c net.Conn) (byte, int, error) {
 	}
 	err = bencode.Decode(data, &hdr)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	pieces := hdr.Size / blockSize
 	if pieces == 0 {
 		pieces = 1
 	}
-	return byte(hdr.Data.Type), pieces, nil
+	return byte(hdr.Data.Type), hdr.Size, pieces, nil
 }
 
 // http://www.bittorrent.org/beps/bep_0009.html#request
@@ -231,7 +231,7 @@ func (mgr *resMgr) get(r resReq) {
 		// logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
-	metaData, pieces, err := readExtHeader(c)
+	metaData, metaSize, pieces, err := readExtHeader(c)
 	if err != nil {
 		// logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
@@ -280,9 +280,9 @@ func (mgr *resMgr) get(r resReq) {
 		}
 		pieceLength[hdr.Piece] = hdr.Size
 		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
-		logging.Info("piece: hash=%s addr=%s:%d id=%d length=%d, recv=%d",
+		logging.Info("piece: hash=%s addr=%s:%d id=%d metaSize=%d, length=%d, recv=%d",
 			r.id.String(), r.ip.String(), r.port,
-			hdr.Piece, pieceLength[hdr.Piece], totalLength())
+			hdr.Piece, metaSize, pieceLength[hdr.Piece], totalLength())
 		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
