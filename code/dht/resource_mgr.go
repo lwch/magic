@@ -246,6 +246,13 @@ func (mgr *resMgr) get(r resReq) {
 	}
 	pieceLength := make([]int, pieces)
 	pieceData := make([][]byte, pieces)
+	totalLength := func() int {
+		size := 0
+		for i := 0; i < pieces; i++ {
+			size += len(pieceData[i])
+		}
+		return size
+	}
 	for {
 		msgID, _, data, err := readMessage(c)
 		if err != nil {
@@ -275,10 +282,7 @@ func (mgr *resMgr) get(r resReq) {
 		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
 		logging.Info("piece: hash=%s addr=%s:%d id=%d length=%d, recv=%d",
 			r.id.String(), r.ip.String(), r.port,
-			hdr.Piece, pieceLength[hdr.Piece], len(pieceData[hdr.Piece]))
-		if hdr.Piece > 0 {
-			logging.Info("piece_data: %s", hex.Dump(data))
-		}
+			hdr.Piece, pieceLength[hdr.Piece], totalLength())
 		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
