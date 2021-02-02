@@ -158,7 +158,12 @@ func appendString(str string, slice reflect.Value) (reflect.Value, error) {
 }
 
 func appendDict(r io.Reader, slice reflect.Value) (reflect.Value, error) {
-	return slice, errors.New("not supported dict in list")
+	v := reflect.New(slice.Type().Elem())
+	err := decodeDict(r, v.Elem())
+	if err != nil {
+		return slice, err
+	}
+	return reflect.Append(slice, v.Elem()), nil
 }
 
 func appendList(r io.Reader, slice reflect.Value) (reflect.Value, error) {

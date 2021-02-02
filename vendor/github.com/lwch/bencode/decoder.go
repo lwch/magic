@@ -152,6 +152,7 @@ func decodeDict(r io.Reader, v reflect.Value) error {
 
 func decodeList(r io.Reader, v reflect.Value) error {
 	slice := reflect.MakeSlice(reflect.TypeOf([]interface{}{}), 0, 0)
+	reset := false
 	for {
 		var ch [1]byte
 		_, err := r.Read(ch[:])
@@ -169,6 +170,10 @@ func decodeList(r io.Reader, v reflect.Value) error {
 			}
 			slice, err = appendNumber(n, slice)
 		case 'd':
+			if !reset && v.Type().Elem().Kind() != reflect.Interface {
+				slice = reflect.MakeSlice(v.Type(), 0, 0)
+				reset = true
+			}
 			slice, err = appendDict(r, slice)
 		case 'l':
 			slice, err = appendList(r, slice)

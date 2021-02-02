@@ -272,12 +272,23 @@ func (mgr *resMgr) get(r resReq) {
 			PieceLength int    `bencode:"piece length"`
 			Length      int    `bencode:"length"`
 			Name        string `bencode:"name"`
+			Files       []struct {
+				Length int      `bencode:"length"`
+				Path   []string `bencode:"path"`
+				Name   string   `bencode:"name"`
+			} `bencode:"files"`
 		}
 		err = dec.Decode(&files)
 		if err != nil {
-			logging.Error("*GET* decode data body failed, piece=%d\n"+r.errInfo(err), hdr.Piece, hex.Dump(data))
+			logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
 			return
 		}
-		logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
+		if len(files.Name) > 0 {
+			logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
+			continue
+		}
+		for _, file := range files.Files {
+			logging.Info("recv: name=%s, path=%v, length=%d", file.Name, file.Path, file.Length)
+		}
 	}
 }
