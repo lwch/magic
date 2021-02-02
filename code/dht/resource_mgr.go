@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -253,21 +252,31 @@ func (mgr *resMgr) get(r resReq) {
 		if msgID != extMsgID {
 			continue
 		}
-		buffer := bytes.NewBuffer(data)
+		dec := bencode.NewDecoder(bytes.NewBuffer(data))
 		// http://www.bittorrent.org/beps/bep_0009.html#data
-		var dec struct {
+		var hdr struct {
 			Type  byte `bencode:"msg_type"`
 			Piece int  `bencode:"piece"`
 			Size  int  `bencode:"total_size"`
 		}
-		err = bencode.NewDecoder(buffer).Decode(&dec)
+		err = dec.Decode(&hdr)
 		if err != nil {
-			logging.Error("*GET* decode data failed" + r.errInfo(err))
+			logging.Error("*GET* decode data header failed" + r.errInfo(err))
 			return
 		}
-		if dec.Type != extData {
+		if hdr.Type != extData {
 			continue
 		}
-		logging.Info("left_data=%s\n\n%s", hex.Dump(data), hex.Dump(buffer.Bytes()))
+		var files struct {
+			PieceLength int    `bencode:"piece length"`
+			Length      int    `bencode:"length"`
+			Name        string `bencode:"name"`
+		}
+		err = dec.Decode(&files)
+		if err != nil {
+			logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
+			return
+		}
+		fmt.Println(files.Name)
 	}
 }
