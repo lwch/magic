@@ -276,6 +276,9 @@ func (mgr *resMgr) get(r resReq) {
 		logging.Info("piece: hash=%s addr=%s:%d id=%d length=%d, recv=%d",
 			r.id.String(), r.ip.String(), r.port,
 			hdr.Piece, pieceLength[hdr.Piece], len(pieceData[hdr.Piece]))
+		if hdr.Piece > 0 {
+			logging.Info("piece_data: %s", hex.Dump(data))
+		}
 		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
