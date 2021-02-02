@@ -291,7 +291,6 @@ func (mgr *resMgr) get(r resReq) {
 				Files       []struct {
 					Length int      `bencode:"length"`
 					Path   []string `bencode:"path"`
-					Name   string   `bencode:"name"`
 				} `bencode:"files"`
 			}
 			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
@@ -303,8 +302,8 @@ func (mgr *resMgr) get(r resReq) {
 				logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
 			}
 			for _, file := range files.Files {
-				logging.Info("recv: hash=%s, name=%s, path=%v, length=%d",
-					r.id.String(), file.Name, file.Path, file.Length)
+				logging.Info("recv: hash=%s, path=%v, length=%d",
+					r.id.String(), file.Path, file.Length)
 			}
 			return
 		}
