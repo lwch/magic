@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -298,7 +297,7 @@ func (mgr *resMgr) get(r resReq) {
 			}
 			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
 			if err != nil {
-				logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
+				logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
 				return
 			}
 			if len(files.Name) > 0 {
