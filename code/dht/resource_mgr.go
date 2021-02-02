@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -245,6 +244,8 @@ func (mgr *resMgr) get(r resReq) {
 			return
 		}
 	}
+	pieceLength := make([]int, pieces)
+	pieceData := make([][]byte, pieces)
 	for {
 		msgID, _, data, err := readMessage(c)
 		if err != nil {
@@ -254,7 +255,8 @@ func (mgr *resMgr) get(r resReq) {
 		if msgID != extMsgID {
 			continue
 		}
-		dec := bencode.NewDecoder(bytes.NewBuffer(data))
+		buf := bytes.NewBuffer(data)
+		dec := bencode.NewDecoder(buf)
 		// http://www.bittorrent.org/beps/bep_0009.html#data
 		var hdr struct {
 			Type  byte `bencode:"msg_type"`
@@ -269,31 +271,35 @@ func (mgr *resMgr) get(r resReq) {
 		if hdr.Type != extData {
 			continue
 		}
-		var files struct {
-			PieceLength int    `bencode:"piece length"`
-			Length      int    `bencode:"length"`
-			Name        string `bencode:"name"`
-			Files       []struct {
-				Length int      `bencode:"length"`
-				Path   []string `bencode:"path"`
-				Name   string   `bencode:"name"`
-			} `bencode:"files"`
-		}
-		err = dec.Decode(&files)
-		if err != nil {
-			if strings.Contains(err.Error(), "unexpected EOF") {
-				logging.Info("unexpected EOF")
+		pieceLength[hdr.Piece] = hdr.Size
+		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
+		logging.Info("piece: length=%d, recv=%d", pieceLength[hdr.Piece], len(pieceData[hdr.Piece]))
+		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
+			var files struct {
+				PieceLength int    `bencode:"piece length"`
+				Length      int    `bencode:"length"`
+				Name        string `bencode:"name"`
+				Files       []struct {
+					Length int      `bencode:"length"`
+					Path   []string `bencode:"path"`
+					Name   string   `bencode:"name"`
+				} `bencode:"files"`
+			}
+			err = bencode.Decode(pieceData[hdr.Piece], &files)
+			if err != nil {
+				// if strings.Contains(err.Error(), "unexpected EOF") {
+				// 	continue
+				// }
+				logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
+				return
+			}
+			if len(files.Name) > 0 {
+				logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
 				continue
 			}
-			logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
-			return
-		}
-		if len(files.Name) > 0 {
-			logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
-			continue
-		}
-		for _, file := range files.Files {
-			logging.Info("recv: name=%s, path=%v, length=%d", file.Name, file.Path, file.Length)
+			for _, file := range files.Files {
+				logging.Info("recv: name=%s, path=%v, length=%d", file.Name, file.Path, file.Length)
+			}
 		}
 	}
 }
