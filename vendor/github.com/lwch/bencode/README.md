@@ -1,6 +1,6 @@
 # bencode
 
-[![GoDoc](https://godoc.org/github.com/lwch/bencode?status.svg)](https://godoc.org/github.com/lwch/bencode)
+[![GoDoc](https://godoc.org/github.com/lwch/bencode?status.svg)](https://godoc.org/github.com/lwch/bencode) [![GoTest](https://travis-ci.org/lwch/bencode.svg)](https://travis-ci.org/github/lwch/bencode)
 
 Bencode for [BitTorrent](https://en.wikipedia.org/wiki/Bencode) in golang, supported number, string and dict into go struct or map.
 

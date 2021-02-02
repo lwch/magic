@@ -1,9 +1,9 @@
 package bencode
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 )
@@ -157,11 +157,16 @@ func appendString(str string, slice reflect.Value) (reflect.Value, error) {
 	return reflect.Append(slice, v.Elem()), nil
 }
 
-func appendDict(r *bufio.Reader, slice reflect.Value) (reflect.Value, error) {
-	return slice, errors.New("not supported dict in list")
+func appendDict(r io.Reader, slice reflect.Value) (reflect.Value, error) {
+	v := reflect.New(slice.Type().Elem())
+	err := decodeDict(r, v.Elem())
+	if err != nil {
+		return slice, err
+	}
+	return reflect.Append(slice, v.Elem()), nil
 }
 
-func appendList(r *bufio.Reader, slice reflect.Value) (reflect.Value, error) {
+func appendList(r io.Reader, slice reflect.Value) (reflect.Value, error) {
 	return slice, errors.New("not supported list in list")
 }
 

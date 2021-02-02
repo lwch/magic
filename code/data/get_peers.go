@@ -47,9 +47,10 @@ func GetPeers(id, hash [20]byte) ([]byte, string, error) {
 }
 
 // GetPeersNotFound build get_peers not found response packet
-func GetPeersNotFound(id [20]byte, token, nodes string) ([]byte, error) {
+func GetPeersNotFound(tx string, id [20]byte, token, nodes string) ([]byte, error) {
 	var rep GetPeersNotFoundResponse
-	rep.Hdr = newHdr(response)
+	rep.Transaction = tx
+	rep.Type = response
 	rep.Response.ID = id
 	rep.Response.Token = token
 	rep.Response.Nodes = nodes

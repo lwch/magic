@@ -23,9 +23,10 @@ type AnnouncePeerResponse struct {
 }
 
 // AnnouncePeer build announce_peer response packet
-func AnnouncePeer(id [20]byte) ([]byte, error) {
+func AnnouncePeer(tx string, id [20]byte) ([]byte, error) {
 	var rep AnnouncePeerResponse
-	rep.Hdr = newHdr(response)
+	rep.Transaction = tx
+	rep.Type = response
 	rep.Response.ID = id
 	data, err := bencode.Encode(rep)
 	if err != nil {

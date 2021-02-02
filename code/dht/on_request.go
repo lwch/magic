@@ -2,107 +2,116 @@ package dht
 
 import (
 	"bytes"
+	"encoding/binary"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
 	"github.com/lwch/magic/code/logging"
 )
 
-func (mgr *NodeMgr) onPing(node *Node, buf []byte) {
-	data, err := data.PingRep(mgr.id)
+func (n *node) onPing(buf []byte) {
+	var req data.Hdr
+	err := bencode.Decode(buf, &req)
 	if err != nil {
-		logging.Error("build ping response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("decode ping request failed" + n.errInfo(err))
 		return
 	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
+	data, err := data.PingRep(req.Transaction, n.dht.local)
 	if err != nil {
-		logging.Error("send ping response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("build ping response packet failed" + n.errInfo(err))
+		return
+	}
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
+	if err != nil {
+		logging.Error("send ping response packet failed" + n.errInfo(err))
 		return
 	}
 }
 
-func (mgr *NodeMgr) onFindNode(node *Node, buf []byte) {
+func compactNodes(nodes []*node) []byte {
+	ret := make([]byte, len(nodes)*26)
+	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
+		copy(ret[i*26:], node.id[:])
+		var ipPort bytes.Buffer
+		binary.Write(&ipPort, binary.BigEndian, node.addr.IP)
+		binary.Write(&ipPort, binary.BigEndian, uint16(node.addr.Port))
+		copy(ret[i*26+20:], ipPort.Bytes())
+	}
+	return ret
+}
+
+func (n *node) onFindNode(buf []byte) {
 	var req data.FindRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {
-		logging.Error("parse find_node packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("decode find_node request failed" + n.errInfo(err))
 		return
 	}
-	nodes := mgr.topK(req.Data.Target, topSize)
-	if nodes == nil {
-		logging.Info("less nodes")
-		return
-	}
-	data, err := data.FindRep(mgr.id, string(formatNodes(nodes)))
+	nodes := n.dht.tb.neighbor(req.Data.Target)
+	data, err := data.FindRep(req.Transaction, n.dht.local, string(compactNodes(nodes)))
 	if err != nil {
-		logging.Error("build find_node response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("build find_node response packet faield" + n.errInfo(err))
 		return
 	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
 	if err != nil {
-		logging.Error("send find_node response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("send find_node response packet failed" + n.errInfo(err))
 		return
 	}
 }
 
-var emptyHash [20]byte
-
-func (mgr *NodeMgr) onGetPeers(node *Node, buf []byte) {
+func (n *node) onGetPeers(buf []byte) {
 	var req data.GetPeersRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {
-		logging.Error("parse get_peers packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("decode get_peers request failed" + n.errInfo(err))
 		return
 	}
-	logging.Info("get_peers: %x", req.Data.Hash)
-	nodes := mgr.topK(req.Data.Hash, topSize)
-	if nodes == nil {
-		logging.Info("less nodes")
-		return
-	}
-	data, err := data.GetPeersNotFound(mgr.id, data.Rand(32), string(formatNodes(nodes)))
+	// logging.Info("get_peers: %x", req.Data.Hash)
+	nodes := n.dht.tb.neighbor(req.Data.Hash)
+	data, err := data.GetPeersNotFound(req.Transaction, n.dht.local, data.Rand(16), string(compactNodes(nodes)))
 	if err != nil {
-		logging.Error("build get_peers response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("build get_peers not found response packet faield" + n.errInfo(err))
 		return
 	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
 	if err != nil {
-		logging.Error("send get_peers response packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("send get_peers not found response packet failed" + n.errInfo(err))
 		return
 	}
-	if bytes.Equal(req.Data.Hash[:], emptyHash[:]) {
-		return
-	}
-	for _, node := range nodes {
-		if !mgr.rm.allowScan(req.Data.Hash) {
-			break
+	if n.dht.even%2 == 1 {
+		for _, node := range nodes {
+			node.sendGet(req.Data.Hash)
 		}
-		node.sendGet(mgr.listen, mgr.id, req.Data.Hash)
-		mgr.rm.scan(req.Data.Hash)
 	}
+	n.dht.even++
 }
 
-func (mgr *NodeMgr) onAnnouncePeer(node *Node, buf []byte) {
+func (n *node) onAnnouncePeer(buf []byte) {
 	var req data.AnnouncePeerRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {
-		logging.Error("parse announce_peer packet failed of %s, err=%v", node.HexID(), err)
+		logging.Error("decode announce_peer request failed" + n.errInfo(err))
 		return
 	}
-	logging.Info("announce_peer: %x", req.Data.Hash)
-	data, err := data.AnnouncePeer(mgr.id)
-	if err != nil {
-		logging.Error("build announce_peer response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	_, err = mgr.listen.WriteTo(data, &node.addr)
-	if err != nil {
-		logging.Error("send announce_peer response packet failed of %s, err=%v", node.HexID(), err)
-		return
-	}
-	port := node.addr.Port
+	port := req.Data.Port
 	if req.Data.Implied != 0 {
-		port = int(req.Data.Port)
+		port = uint16(n.addr.Port)
 	}
-	mgr.rm.markFound(req.Data.Hash, node.addr.IP, uint16(port))
+	data, err := data.AnnouncePeer(req.Transaction, n.dht.local)
+	if err != nil {
+		logging.Error("build announce_peer response packet failed" + n.errInfo(err))
+		return
+	}
+	_, err = n.dht.listen.WriteTo(data, &n.addr)
+	if err != nil {
+		logging.Error("send announce_peer packet failed" + n.errInfo(err))
+		return
+	}
+	n.dht.res.push(resReq{
+		id:   req.Data.Hash,
+		ip:   n.addr.IP,
+		port: port,
+	})
 }

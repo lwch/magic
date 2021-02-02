@@ -2,14 +2,12 @@ package dht
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
-	"sort"
-	"sync"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -19,162 +17,96 @@ import (
 
 const protocol = "BitTorrent protocol"
 
-type res struct {
-	hash [20]byte
-	cnt  int
-}
+// http://www.bittorrent.org/beps/bep_0010.html
+const extMsgID = byte(20)
+const extRequest = byte(0)
+const extData = byte(1)
+const extReject = byte(2)
 
-type foundRes struct {
-	hash [20]byte
+// http://www.bittorrent.org/beps/bep_0009.html#metadata
+const blockSize = 16 * 1024
+
+type resReq struct {
+	id   hashType
 	ip   net.IP
 	port uint16
 }
 
-type metaInfo struct {
-	hash [20]byte
-	ip   net.IP
-	port uint16
-	name string
-	size uint64
+func (r resReq) addr() string {
+	return fmt.Sprintf("%s:%d", r.ip.String(), r.port)
+}
+
+func (r resReq) errInfo(err error) string {
+	return fmt.Sprintf("; id=%s, addr=%s, err=%v",
+		r.id.String(), r.addr(), err)
+}
+
+func (r resReq) logInfo() string {
+	return fmt.Sprintf("; id=%s, addr=%s",
+		r.id.String(), r.addr())
+}
+
+// MetaFile file info
+type MetaFile struct {
+	Path   []string `json:"path"`
+	Length int      `json:"length"`
+}
+
+// MetaInfo meta info
+type MetaInfo struct {
+	Hash       string     `json:"hash"`
+	Peer       string     `json:"peer"`
+	Name       string     `json:"name"`
+	Length     int        `json:"length"`
+	MetaLength int        `json:"meta_length"`
+	Files      []MetaFile `json:"files,omitempty"`
 }
 
 type resMgr struct {
-	list     []res
-	foundIdx int
-	found    []foundRes
-	info     map[string]metaInfo
-	size     int
-	maxScan  int
+	dht   *DHT
+	chReq chan resReq
+
+	// runtime
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func newResMgr(maxRes, maxScan int) *resMgr {
+func newResMgr(dht *DHT) *resMgr {
 	mgr := &resMgr{
-		list:    make([]res, maxRes),
-		found:   make([]foundRes, maxRes),
-		maxScan: maxScan,
+		dht:   dht,
+		chReq: make(chan resReq, 100),
 	}
-	go mgr.print()
-	go mgr.getInfo()
+	mgr.ctx, mgr.cancel = context.WithCancel(context.Background())
+	go mgr.loopGet()
 	return mgr
 }
 
-func (mgr *resMgr) allowScan(hash [20]byte) bool {
-	for i := 0; i < len(mgr.found); i++ {
-		if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
-			break
-		}
-		if bytes.Equal(mgr.found[i].hash[:], hash[:]) {
-			return false
-		}
-	}
-	for i := 0; i < len(mgr.list); i++ {
-		r := mgr.list[i]
-		if bytes.Equal(r.hash[:], hash[:]) {
-			return r.cnt < mgr.maxScan
-		}
-	}
-	return true
+func (mgr *resMgr) push(r resReq) {
+	mgr.chReq <- r
 }
 
-func (mgr *resMgr) scan(hash [20]byte) {
-	// exists
-	for i := 0; i < len(mgr.list); i++ {
-		r := &mgr.list[i]
-		if bytes.Equal(r.hash[:], hash[:]) {
-			r.cnt++
+func (mgr *resMgr) close() {
+	mgr.cancel()
+}
+
+func (mgr *resMgr) loopGet() {
+	for {
+		select {
+		case req := <-mgr.chReq:
+			go mgr.get(req, mgr.dht.Out)
+		case <-mgr.ctx.Done():
 			return
 		}
-	}
-	// list not full
-	size := mgr.size
-	if size < len(mgr.list) {
-		mgr.list[size].hash = hash
-		mgr.list[size].cnt = 1
-		mgr.size++
-		return
-	}
-	// maximum elimination
-	sort.Slice(mgr.list, func(i, j int) bool {
-		return mgr.list[i].cnt > mgr.list[j].cnt
-	})
-	mgr.list[0].hash = hash
-	mgr.list[0].cnt = 1
-}
-
-func (mgr *resMgr) markFound(hash [20]byte, ip net.IP, port uint16) {
-	idx := mgr.foundIdx % len(mgr.found)
-	mgr.found[idx] = foundRes{
-		hash: hash,
-		ip:   ip,
-		port: port,
-	}
-	mgr.foundIdx++
-}
-
-func (mgr *resMgr) print() {
-	show := func() {
-		links := 0
-		for i := 0; i < len(mgr.found); i++ {
-			if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
-				break
-			}
-			res := mgr.found[i]
-			logging.Info("resource: %x in %s:%d", res.hash, res.ip.String(), res.port)
-			links++
-		}
-		var cnt int
-		var total int
-		var max int
-		for i := 0; i < len(mgr.list); i++ {
-			res := mgr.list[i]
-			if bytes.Equal(res.hash[:], emptyHash[:]) {
-				break
-			}
-			if res.cnt > max {
-				max = res.cnt
-			}
-			total += res.cnt
-			cnt++
-		}
-		if cnt > 0 {
-			logging.Info("resInfo: %d links, avg scan count %d, max scan count %d", links, total/cnt, max)
-		}
-	}
-	for {
-		show()
-		time.Sleep(time.Second)
-	}
-}
-
-func (mgr *resMgr) getInfo() {
-	get := func() {
-		var wg sync.WaitGroup
-		for i := 0; i < len(mgr.found); i++ {
-			if bytes.Equal(mgr.found[i].hash[:], emptyHash[:]) {
-				break
-			}
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				mgr.get(mgr.found[i])
-			}(i)
-		}
-		wg.Wait()
-	}
-	for {
-		if mgr.foundIdx > 0 {
-			get()
-		}
-		time.Sleep(time.Second)
 	}
 }
 
 // http://www.bittorrent.org/beps/bep_0003.html
-func makeHandshake(hash [20]byte) []byte {
+func makeHandshake(hash hashType) []byte {
 	ret := make([]byte, 68)
 	ret[0] = 19
 	copy(ret[1:], protocol)
-	// 20:28 is reserved
+	ret[25] = 0x10 // http://www.bittorrent.org/beps/bep_0010.html
+	ret[27] = 1
 	copy(ret[28:], hash[:])
 	id := data.RandID()
 	copy(ret[48:], id[:])
@@ -203,35 +135,23 @@ func readHandshake(c net.Conn) error {
 	return nil
 }
 
-func sendExtHeader(c net.Conn) error {
-	// http://www.bittorrent.org/beps/bep_0009.html
-	var data struct {
-		M struct {
-			Action int `bencode:"ut_metadata"`
-		} `bencode:"m"`
-	}
-	data.M.Action = 3
-	raw, err := bencode.Encode(data)
+// http://www.bittorrent.org/beps/bep_0010.html
+func sendMessage(c net.Conn, msgID, extID byte, payload []byte) error {
+	c.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	err := binary.Write(c, binary.BigEndian, uint32(len(payload)+2))
 	if err != nil {
 		return err
 	}
-	// http://www.bittorrent.org/beps/bep_0010.html
-	raw = append([]byte{20, 0}, raw...)
-	c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	err = binary.Write(c, binary.BigEndian, uint32(len(raw)))
+	_, err = c.Write(append([]byte{msgID, extID}, payload...))
 	if err != nil {
-		return fmt.Errorf("sendExtHeader length failed: %v", err)
-	}
-	_, err = c.Write(raw)
-	if err != nil {
-		return fmt.Errorf("sendExtHeader data failed: %v", err)
+		return err
 	}
 	return nil
 }
 
-func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
-	// http://www.bittorrent.org/beps/bep_0010.html
-	c.SetReadDeadline(time.Now().Add(10 * time.Second))
+// http://www.bittorrent.org/beps/bep_0010.html
+func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
+	c.SetReadDeadline(time.Now().Add(time.Minute))
 	var l uint32
 	err := binary.Read(c, binary.BigEndian, &l)
 	if err != nil {
@@ -242,43 +162,178 @@ func readPeerData(c net.Conn) (uint8, uint8, []byte, error) {
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
 	}
-	return payload[0], payload[1], payload[2:], nil
+	switch l {
+	case 0:
+		return 0, 0, nil, nil
+	case 1:
+		return payload[0], 0, nil, nil
+	default:
+		return payload[0], payload[1], payload[2:], nil
+	}
 }
 
-func (mgr *resMgr) get(r foundRes) {
-	hexID := fmt.Sprintf("%x", r.hash)
-	if _, ok := mgr.info[hexID]; ok {
-		return
+func sendExtHeader(c net.Conn) error {
+	// http://www.bittorrent.org/beps/bep_0009.html
+	var data struct {
+		M struct {
+			Action byte `bencode:"ut_metadata"`
+		} `bencode:"m"`
 	}
-	addr := fmt.Sprintf("%s:%d", r.ip.String(), r.port)
-	c, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", r.ip.String(), r.port), 5*time.Second)
+	data.M.Action = 1
+	raw, err := bencode.Encode(data)
 	if err != nil {
-		logging.Error("*GET* connect to %s failed, err=%v", addr, err)
+		return err
+	}
+	return sendMessage(c, extMsgID, 0, raw)
+}
+
+func readExtHeader(c net.Conn) (byte, int, int, error) {
+	_, _, data, err := readMessage(c)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	// http://www.bittorrent.org/beps/bep_0010.html
+	var hdr struct {
+		Port    uint16 `bencode:"p"`
+		Version string `bencode:"v"`
+		IP      string `bencode:"yourip"`
+		Data    struct {
+			Type int `bencode:"ut_metadata"` // http://www.bittorrent.org/beps/bep_0009.html
+		} `bencode:"m"`
+		Size int `bencode:"metadata_size"`
+	}
+	err = bencode.Decode(data, &hdr)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	if hdr.Size == 0 {
+		return byte(hdr.Data.Type), 0, 0, nil
+	}
+	pieces := float64(hdr.Size)/float64(blockSize) + .5
+	if pieces < 1 {
+		pieces = 1
+	}
+	return byte(hdr.Data.Type), hdr.Size, int(pieces), nil
+}
+
+// http://www.bittorrent.org/beps/bep_0009.html#request
+func requestPiece(c net.Conn, metaData byte, n int) error {
+	var req struct {
+		Type  byte `bencode:"msg_type"`
+		Piece int  `bencode:"piece"`
+	}
+	req.Type = extRequest
+	req.Piece = n
+	data, err := bencode.Encode(req)
+	if err != nil {
+		logging.Error("build request packet failed, addr=%s, err=%v",
+			c.RemoteAddr().String(), err)
+		return err
+	}
+	return sendMessage(c, extMsgID, metaData, data)
+}
+
+func (mgr *resMgr) get(r resReq, out chan MetaInfo) {
+	c, err := net.DialTimeout("tcp", r.addr(), 5*time.Second)
+	if err != nil {
+		// logging.Error("*GET* connect failed" + r.errInfo(err))
 		return
 	}
 	defer c.Close()
-	_, err = c.Write(makeHandshake(r.hash))
+	_, err = c.Write(makeHandshake(r.id))
 	if err != nil {
-		logging.Error("*GET* write handshake to %s failed, err=%v", addr, err)
+		// logging.Error("*GET* send handshake failed" + r.errInfo(err))
 		return
 	}
 	err = readHandshake(c)
 	if err != nil {
-		logging.Error("*GET* read handshake length to %s failed, err=%v", addr, err)
+		// logging.Error("*GET* read handshake failed" + r.errInfo(err))
 		return
 	}
 	err = sendExtHeader(c)
 	if err != nil {
-		logging.Error("*GET* send ext header to %s failed, err=%v", addr, err)
+		// logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
-	for {
-		msgID, extID, data, err := readPeerData(c)
+	metaData, metaSize, pieces, err := readExtHeader(c)
+	if err != nil {
+		// logging.Error("*GET* read ext header failed" + r.errInfo(err))
+		return
+	}
+	logging.Info("*GET* resource %s from %s, pieces=%d, size=%d",
+		r.id.String(), r.addr(), pieces, metaSize)
+	for i := 0; i < pieces; i++ {
+		err = requestPiece(c, metaData, i)
 		if err != nil {
-			logging.Error("*GET* read peer data to %s failed, err=%v", addr, err)
+			logging.Error("*GET* send request piece %d failed"+r.errInfo(err), i)
 			return
 		}
-		logging.Info("msg_id=%d, ext_id=%d", msgID, extID)
-		logging.Info("read_data: %s", hex.Dump(data))
+	}
+	pieceData := make([][]byte, pieces)
+	totalLength := func() int {
+		size := 0
+		for i := 0; i < pieces; i++ {
+			size += len(pieceData[i])
+		}
+		return size
+	}
+	for {
+		msgID, _, data, err := readMessage(c)
+		if err != nil {
+			logging.Error("*GET* read peer data failed" + r.errInfo(err))
+			return
+		}
+		if msgID != extMsgID {
+			continue
+		}
+		buf := bytes.NewBuffer(data)
+		dec := bencode.NewDecoder(buf)
+		// http://www.bittorrent.org/beps/bep_0009.html#data
+		var hdr struct {
+			Type  byte `bencode:"msg_type"`
+			Piece int  `bencode:"piece"`
+			Size  int  `bencode:"total_size"`
+		}
+		err = dec.Decode(&hdr)
+		if err != nil {
+			logging.Error("*GET* decode data header failed" + r.errInfo(err))
+			return
+		}
+		if hdr.Type != extData {
+			continue
+		}
+		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
+		if totalLength() >= metaSize {
+			var files struct {
+				PieceLength int    `bencode:"piece length"`
+				Length      int    `bencode:"length"`
+				Name        string `bencode:"name"`
+				Files       []struct {
+					Length int      `bencode:"length"`
+					Path   []string `bencode:"path"`
+				} `bencode:"files"`
+			}
+			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
+			if err != nil {
+				logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
+				return
+			}
+			var list []MetaFile
+			for _, file := range files.Files {
+				list = append(list, MetaFile{
+					Path:   file.Path,
+					Length: file.Length,
+				})
+			}
+			out <- MetaInfo{
+				Hash:       r.id.String(),
+				Peer:       r.addr(),
+				Name:       files.Name,
+				Length:     files.Length,
+				MetaLength: metaSize,
+				Files:      list,
+			}
+			return
+		}
 	}
 }

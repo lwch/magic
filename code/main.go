@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lwch/magic/code/dht"
+	"github.com/lwch/magic/code/logging"
 	"github.com/lwch/runtime"
 )
 
@@ -30,7 +32,20 @@ func init() {
 }
 
 func main() {
-	mgr, err := dht.NewNodeMgr(6881, 30000, 1000, 1000)
+	cfg := dht.NewConfig()
+	cfg.Listen = 6882
+	cfg.MinNodes = 100000
+	cfg.ShowTableInterval = 10 * time.Second
+	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
+	uniq := make(map[string]bool)
+	for info := range mgr.Out {
+		if uniq[info.Hash] {
+			continue
+		}
+		data, _ := json.Marshal(info)
+		logging.Info("info: %s", string(data))
+		uniq[info.Hash] = true
+	}
 }

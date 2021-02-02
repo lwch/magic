@@ -1,7 +1,6 @@
 package bencode
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -25,7 +24,7 @@ func (dec Decoder) Decode(data interface{}) error {
 	if reflect.ValueOf(data).Kind() != reflect.Ptr {
 		return errors.New("input value is not pointer")
 	}
-	return decode(bufio.NewReader(dec.r), "", reflect.ValueOf(data).Elem())
+	return decode(dec.r, "", reflect.ValueOf(data).Elem())
 }
 
 // Decode decode data in raw
@@ -33,12 +32,13 @@ func Decode(data []byte, value interface{}) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(value)
 }
 
-func decode(r *bufio.Reader, key string, v reflect.Value) error {
-	ch, err := r.ReadByte()
+func decode(r io.Reader, key string, v reflect.Value) error {
+	var ch [1]byte
+	_, err := r.Read(ch[:])
 	if err != nil {
 		return err
 	}
-	switch ch {
+	switch ch[0] {
 	case 'i':
 		n, err := parseNumber(r)
 		if err != nil {
@@ -50,7 +50,7 @@ func decode(r *bufio.Reader, key string, v reflect.Value) error {
 	case 'l':
 		return decodeList(r, v)
 	default:
-		str, err := parseString(r, ch)
+		str, err := parseString(r, ch[0])
 		if err != nil {
 			return err
 		}
@@ -63,38 +63,44 @@ type number struct {
 	unsigned uint64
 }
 
-func parseNumber(r *bufio.Reader) (number, error) {
+func parseNumber(r io.Reader) (number, error) {
 	var ret number
 	var str []byte
 	for {
-		ch, err := r.ReadByte()
+		var ch [1]byte
+		_, err := r.Read(ch[:])
 		if err != nil {
 			return ret, fmt.Errorf("parse number: %v", err)
 		}
-		if ch == 'e' {
+		if ch[0] == 'e' {
 			ret.signed, err = strconv.ParseInt(string(str), 10, 64)
 			if err != nil {
 				return ret, fmt.Errorf("can not parse %s to signed number", string(str))
 			}
-			ret.unsigned, err = strconv.ParseUint(string(str), 10, 64)
-			if err != nil {
-				return ret, fmt.Errorf("can not parse %s to unsigned number", string(str))
+			if str[0] != '-' {
+				ret.unsigned, err = strconv.ParseUint(string(str), 10, 64)
+				if err != nil {
+					return ret, fmt.Errorf("can not parse %s to unsigned number", string(str))
+				}
+			} else {
+				ret.unsigned = uint64(ret.signed)
 			}
 			return ret, nil
 		}
-		str = append(str, ch)
+		str = append(str, ch[0])
 	}
 }
 
-func parseString(r *bufio.Reader, ch byte) (string, error) {
+func parseString(r io.Reader, ch byte) (string, error) {
 	var len []byte
 	len = append(len, ch)
 	for {
-		ch, err := r.ReadByte()
+		var ch [1]byte
+		_, err := r.Read(ch[:])
 		if err != nil {
 			return "", fmt.Errorf("parse string: %v", err)
 		}
-		if ch == ':' {
+		if ch[0] == ':' {
 			size, err := strconv.ParseUint(string(len), 10, 64)
 			if err != nil {
 				return "", fmt.Errorf("can not parse string size: %s", string(len))
@@ -106,20 +112,21 @@ func parseString(r *bufio.Reader, ch byte) (string, error) {
 			}
 			return string(data), nil
 		}
-		len = append(len, ch)
+		len = append(len, ch[0])
 	}
 }
 
-func decodeDict(r *bufio.Reader, v reflect.Value) error {
+func decodeDict(r io.Reader, v reflect.Value) error {
 	for {
-		ch, err := r.ReadByte()
+		var ch [1]byte
+		_, err := r.Read(ch[:])
 		if err != nil {
 			return fmt.Errorf("decode dict: %v", err)
 		}
-		if ch == 'e' {
+		if ch[0] == 'e' {
 			return nil
 		}
-		key, err := parseString(r, ch)
+		key, err := parseString(r, ch[0])
 		var target reflect.Value
 		switch v.Kind() {
 		case reflect.Interface, reflect.Map:
@@ -143,17 +150,19 @@ func decodeDict(r *bufio.Reader, v reflect.Value) error {
 	}
 }
 
-func decodeList(r *bufio.Reader, v reflect.Value) error {
+func decodeList(r io.Reader, v reflect.Value) error {
 	slice := reflect.MakeSlice(reflect.TypeOf([]interface{}{}), 0, 0)
+	reset := false
 	for {
-		ch, err := r.ReadByte()
+		var ch [1]byte
+		_, err := r.Read(ch[:])
 		if err != nil {
 			return fmt.Errorf("decode dict: %v", err)
 		}
-		if ch == 'e' {
+		if ch[0] == 'e' {
 			return setList(v, slice)
 		}
-		switch ch {
+		switch ch[0] {
 		case 'i':
 			n, err := parseNumber(r)
 			if err != nil {
@@ -161,11 +170,17 @@ func decodeList(r *bufio.Reader, v reflect.Value) error {
 			}
 			slice, err = appendNumber(n, slice)
 		case 'd':
+			if v.Type() != notfoundType &&
+				v.Type().Elem().Kind() != reflect.Interface &&
+				!reset {
+				slice = reflect.MakeSlice(v.Type(), 0, 0)
+				reset = true
+			}
 			slice, err = appendDict(r, slice)
 		case 'l':
 			slice, err = appendList(r, slice)
 		default:
-			str, err := parseString(r, ch)
+			str, err := parseString(r, ch[0])
 			if err != nil {
 				return err
 			}
