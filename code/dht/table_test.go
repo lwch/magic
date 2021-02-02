@@ -15,7 +15,7 @@ func init() {
 }
 
 func TestTable(t *testing.T) {
-	table := newTable(nil, 8, 0)
+	table := newTable(nil, 8)
 	var id hashType
 	for i := 0; i < 10000; i++ {
 		rand.Read(id[:])

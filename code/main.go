@@ -35,10 +35,21 @@ func main() {
 	cfg := dht.NewConfig()
 	cfg.Listen = 6882
 	cfg.MinNodes = 1000000
-	cfg.ShowTableInterval = 10 * time.Second
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
+	var nodes int
+	go func() {
+		for count := range mgr.Nodes {
+			nodes = count
+		}
+	}()
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+			logging.Info("%d nodes", nodes)
+		}
+	}()
 	uniq := make(map[string]bool)
 	for info := range mgr.Out {
 		if uniq[info.Hash] {

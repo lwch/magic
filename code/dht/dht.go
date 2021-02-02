@@ -61,8 +61,9 @@ type DHT struct {
 	local    hashType
 	chRead   chan pkt
 	minNodes int
-	even     int // speed control
-	Out      chan MetaInfo
+	even     int           // speed control
+	Out      chan MetaInfo // discovery file info
+	Nodes    chan int      // current node count
 
 	// runtime
 	ctx    context.Context
@@ -78,9 +79,10 @@ func New(cfg *Config) (*DHT, error) {
 		chRead:   make(chan pkt, 1000),
 		minNodes: cfg.MinNodes,
 		Out:      make(chan MetaInfo),
+		Nodes:    make(chan int),
 	}
 	rand.Read(dht.local[:])
-	dht.tb = newTable(dht, neighborSize, cfg.ShowTableInterval)
+	dht.tb = newTable(dht, neighborSize)
 	dht.res = newResMgr(dht)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
