@@ -1,12 +1,4 @@
-github.com/lwch/bencode v0.0.0-20210202030230-9c7dd4724fd5 h1:UFq0qwI1nC4yH3Ce5Gn21PF5XhlwiD7ll1md62Bd7Ac=
-github.com/lwch/bencode v0.0.0-20210202030230-9c7dd4724fd5/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
-github.com/lwch/bencode v0.0.0-20210202062738-6e1a9e40dc37 h1:iWTe7Sb9jKLPislNxg7iTfSUqXZ0ERsfzyau4eNU8A8=
-github.com/lwch/bencode v0.0.0-20210202062738-6e1a9e40dc37/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
-github.com/lwch/bencode v0.0.0-20210202072427-8e3ccf738d0c h1:nA9GnarksVJ+5OaM63Ix7tChF1Ty58vogq/PmKviZbo=
-github.com/lwch/bencode v0.0.0-20210202072427-8e3ccf738d0c/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
 github.com/lwch/bencode v0.0.0-20210202083433-4180d42a0321 h1:/LYventVGxUInd+zso2AzQ6lO2tkW6xAHpLTV8Z1+jk=
 github.com/lwch/bencode v0.0.0-20210202083433-4180d42a0321/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d/go.mod h1:uEt0zu1MDC7WnVvodPBGSYAD/KMKk0v36xE8UE5veM8=
-github.com/shiyanhui/dht v0.0.0-20201219151056-5a20f3199263 h1:bn/DPt4KK08FERSZhW2ZowG2t7zcLKYBnRze+mBgOL4=
-github.com/shiyanhui/dht v0.0.0-20201219151056-5a20f3199263/go.mod h1:fw+pXaoy8a8A3OvcOLLlhr4Ty8+pWnPXs89FHHdiZBY=
