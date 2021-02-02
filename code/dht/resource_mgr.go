@@ -294,9 +294,6 @@ func (mgr *resMgr) get(r resReq) {
 			}
 			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
 			if err != nil {
-				// if strings.Contains(err.Error(), "unexpected EOF") {
-				// 	continue
-				// }
 				logging.Error("*GET* decode data body failed, piece=%d\n%s"+r.errInfo(err), hdr.Piece, hex.Dump(data))
 				return
 			}
@@ -305,7 +302,8 @@ func (mgr *resMgr) get(r resReq) {
 				continue
 			}
 			for _, file := range files.Files {
-				logging.Info("recv: name=%s, path=%v, length=%d", file.Name, file.Path, file.Length)
+				logging.Info("recv: hash=%s, name=%s, path=%v, length=%d",
+					r.id.String(), file.Name, file.Path, file.Length)
 			}
 		}
 	}
