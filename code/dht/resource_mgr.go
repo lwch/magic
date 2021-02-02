@@ -225,17 +225,17 @@ func (mgr *resMgr) get(r resReq) {
 		// logging.Error("*GET* read handshake failed" + r.errInfo(err))
 		return
 	}
-	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
 	err = sendExtHeader(c)
 	if err != nil {
-		logging.Error("*GET* send ext header failed" + r.errInfo(err))
+		// logging.Error("*GET* send ext header failed" + r.errInfo(err))
 		return
 	}
 	metaData, pieces, err := readExtHeader(c)
 	if err != nil {
-		logging.Error("*GET* read ext header failed" + r.errInfo(err))
+		// logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
 	}
+	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
 	for i := 0; i < pieces; i++ {
 		err = requestPiece(c, metaData, i)
 		if err != nil {
