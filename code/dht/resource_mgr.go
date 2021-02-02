@@ -278,9 +278,6 @@ func (mgr *resMgr) get(r resReq) {
 			continue
 		}
 		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
-		logging.Info("piece: hash=%s addr=%s:%d id=%d metaSize=%d, recv=%d",
-			r.id.String(), r.ip.String(), r.port,
-			hdr.Piece, metaSize, totalLength())
 		if totalLength() >= metaSize {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
