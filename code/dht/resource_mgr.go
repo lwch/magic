@@ -87,8 +87,8 @@ func makeHandshake(hash hashType) []byte {
 	ret := make([]byte, 68)
 	ret[0] = 19
 	copy(ret[1:], protocol)
-	ret[24] = 0x10 // http://www.bittorrent.org/beps/bep_0010.html
-	ret[26] = 1
+	ret[25] = 0x10 // http://www.bittorrent.org/beps/bep_0010.html
+	ret[27] = 1
 	copy(ret[28:], hash[:])
 	id := data.RandID()
 	copy(ret[48:], id[:])
