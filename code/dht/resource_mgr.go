@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -140,15 +139,16 @@ func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read header failed: %v", err)
 	}
-	if l < 2 {
-		return 0, 0, nil, errors.New("invalid data of length")
-	}
 	payload := make([]byte, l)
 	_, err = io.ReadFull(c, payload)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
 	}
-	return payload[0], payload[1], payload[2:], nil
+	if l >= 2 {
+		return payload[0], payload[1], payload[2:], nil
+	} else {
+		return payload[0], 0, payload[1:], nil
+	}
 }
 
 func sendExtHeader(c net.Conn) error {
@@ -275,9 +275,6 @@ func (mgr *resMgr) get(r resReq) {
 		}
 		err = dec.Decode(&files)
 		if err != nil {
-			if err.Error() == "invalid data of length" {
-				logging.Info("hex: %s", hex.Dump(data))
-			}
 			logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
 			return
 		}
