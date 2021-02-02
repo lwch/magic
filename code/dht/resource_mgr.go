@@ -244,7 +244,6 @@ func (mgr *resMgr) get(r resReq) {
 			return
 		}
 	}
-	pieceLength := make([]int, pieces)
 	pieceData := make([][]byte, pieces)
 	totalLength := func() int {
 		size := 0
@@ -278,12 +277,11 @@ func (mgr *resMgr) get(r resReq) {
 		if hdr.Type != extData {
 			continue
 		}
-		pieceLength[hdr.Piece] = hdr.Size
 		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
-		logging.Info("piece: hash=%s addr=%s:%d id=%d metaSize=%d, length=%d, recv=%d",
+		logging.Info("piece: hash=%s addr=%s:%d id=%d metaSize=%d, recv=%d",
 			r.id.String(), r.ip.String(), r.port,
-			hdr.Piece, metaSize, pieceLength[hdr.Piece], totalLength())
-		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
+			hdr.Piece, metaSize, totalLength())
+		if totalLength() >= metaSize {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
 				Length      int    `bencode:"length"`
@@ -294,7 +292,7 @@ func (mgr *resMgr) get(r resReq) {
 					Name   string   `bencode:"name"`
 				} `bencode:"files"`
 			}
-			err = bencode.Decode(pieceData[hdr.Piece], &files)
+			err = bencode.Decode(bytes.Join(pieceData, nil), &files)
 			if err != nil {
 				// if strings.Contains(err.Error(), "unexpected EOF") {
 				// 	continue
