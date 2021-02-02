@@ -269,6 +269,6 @@ func (mgr *resMgr) get(r resReq) {
 		if dec.Type != extData {
 			continue
 		}
-		logging.Info("left_data=%s", hex.Dump(buffer.Bytes()))
+		logging.Info("left_data=%s\n\n%s", hex.Dump(data), hex.Dump(buffer.Bytes()))
 	}
 }
