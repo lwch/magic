@@ -145,10 +145,14 @@ func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("read payload failed: %v", err)
 	}
-	if l >= 2 {
+	switch l {
+	case 0:
+		return 0, 0, nil, nil
+	case 1:
+		return payload[0], 0, nil, nil
+	default:
 		return payload[0], payload[1], payload[2:], nil
 	}
-	return payload[0], 0, nil, nil
 }
 
 func sendExtHeader(c net.Conn) error {
