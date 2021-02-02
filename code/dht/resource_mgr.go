@@ -90,10 +90,9 @@ var handshakePrefix = []byte{
 // http://www.bittorrent.org/beps/bep_0003.html
 func makeHandshake(hash hashType) []byte {
 	ret := make([]byte, 68)
-	// ret[0] = 19
-	// copy(ret[1:], protocol)
-	copy(ret, handshakePrefix)
-	// 20:28 is reserved
+	ret[0] = 19
+	copy(ret[1:], protocol)
+	ret[24] = 0x10 // http://www.bittorrent.org/beps/bep_0010.html
 	copy(ret[28:], hash[:])
 	id := data.RandID()
 	copy(ret[48:], id[:])
