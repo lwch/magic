@@ -189,6 +189,9 @@ func readExtHeader(c net.Conn) (byte, int, int, error) {
 	if err != nil {
 		return 0, 0, 0, err
 	}
+	if hdr.Size == 0 {
+		return byte(hdr.Data.Type), 0, 0, nil
+	}
 	pieces := float64(hdr.Size)/float64(blockSize) + .5
 	if pieces < 1 {
 		pieces = 1
