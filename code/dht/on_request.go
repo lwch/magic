@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 
 	"github.com/lwch/bencode"
 	"github.com/lwch/magic/code/data"
@@ -90,7 +89,6 @@ func (n *node) onGetPeers(buf []byte) {
 }
 
 func (n *node) onAnnouncePeer(buf []byte) {
-	logging.Info("announce: %s", hex.Dump(buf))
 	var req data.AnnouncePeerRequest
 	err := bencode.Decode(buf, &req)
 	if err != nil {

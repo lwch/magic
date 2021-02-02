@@ -82,11 +82,17 @@ func (mgr *resMgr) loopGet() {
 	}
 }
 
+var handshakePrefix = []byte{
+	19, 66, 105, 116, 84, 111, 114, 114, 101, 110, 116, 32, 112, 114,
+	111, 116, 111, 99, 111, 108, 0, 0, 0, 0, 0, 16, 0, 1,
+}
+
 // http://www.bittorrent.org/beps/bep_0003.html
 func makeHandshake(hash hashType) []byte {
 	ret := make([]byte, 68)
-	ret[0] = 19
-	copy(ret[1:], protocol)
+	// ret[0] = 19
+	// copy(ret[1:], protocol)
+	copy(ret, handshakePrefix)
 	// 20:28 is reserved
 	copy(ret[28:], hash[:])
 	id := data.RandID()
