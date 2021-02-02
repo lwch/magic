@@ -236,7 +236,8 @@ func (mgr *resMgr) get(r resReq) {
 		// logging.Error("*GET* read ext header failed" + r.errInfo(err))
 		return
 	}
-	logging.Info("*GET* resource %s from %s", r.id.String(), r.addr())
+	logging.Info("*GET* resource %s from %s, pieces=%d, size=%d",
+		r.id.String(), r.addr(), pieces, metaSize)
 	for i := 0; i < pieces; i++ {
 		err = requestPiece(c, metaData, i)
 		if err != nil {
