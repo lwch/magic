@@ -41,6 +41,6 @@ func main() {
 	mgr.Discovery(bootstrapAddrs)
 	for info := range mgr.Out {
 		data, _ := json.Marshal(info)
-		logging.Info("%s", string(data))
+		logging.Info("info: %s", string(data))
 	}
 }
