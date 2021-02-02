@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -274,7 +275,7 @@ func (mgr *resMgr) get(r resReq) {
 		}
 		err = dec.Decode(&files)
 		if err != nil {
-			logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
+			logging.Error("*GET* decode data body failed, piece=%d\n"+r.errInfo(err), hdr.Piece, hex.Dump(data))
 			return
 		}
 		logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
