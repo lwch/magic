@@ -273,7 +273,7 @@ func (mgr *resMgr) get(r resReq) {
 		}
 		pieceLength[hdr.Piece] = hdr.Size
 		pieceData[hdr.Piece] = append(pieceData[hdr.Piece], buf.Bytes()...)
-		logging.Info("piece: length=%d, recv=%d", pieceLength[hdr.Piece], len(pieceData[hdr.Piece]))
+		logging.Info("piece: id=%d length=%d, recv=%d", hdr.Piece, pieceLength[hdr.Piece], len(pieceData[hdr.Piece]))
 		if len(pieceData[hdr.Piece]) >= pieceLength[hdr.Piece] {
 			var files struct {
 				PieceLength int    `bencode:"piece length"`
