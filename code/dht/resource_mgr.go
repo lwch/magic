@@ -301,12 +301,12 @@ func (mgr *resMgr) get(r resReq) {
 			}
 			if len(files.Name) > 0 {
 				logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
-				continue
 			}
 			for _, file := range files.Files {
 				logging.Info("recv: hash=%s, name=%s, path=%v, length=%d",
 					r.id.String(), file.Name, file.Path, file.Length)
 			}
+			return
 		}
 	}
 }
