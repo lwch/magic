@@ -148,7 +148,7 @@ func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
 	if l >= 2 {
 		return payload[0], payload[1], payload[2:], nil
 	}
-	return payload[0], 0, payload[1:], nil
+	return payload[0], 0, nil, nil
 }
 
 func sendExtHeader(c net.Conn) error {
