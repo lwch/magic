@@ -277,6 +277,6 @@ func (mgr *resMgr) get(r resReq) {
 			logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
 			return
 		}
-		fmt.Println(files.Name)
+		logging.Info("recv: name=%s, length=%d", files.Name, files.Length)
 	}
 }
