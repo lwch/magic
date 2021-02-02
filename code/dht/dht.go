@@ -79,7 +79,7 @@ func New(cfg *Config) (*DHT, error) {
 		minNodes: cfg.MinNodes,
 	}
 	rand.Read(dht.local[:])
-	dht.tb = newTable(dht, neighborSize)
+	dht.tb = newTable(dht, neighborSize, cfg.ShowTableInterval)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
 	dht.listen, err = net.ListenUDP("udp", &net.UDPAddr{

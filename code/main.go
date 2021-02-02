@@ -33,6 +33,7 @@ func main() {
 	cfg := dht.NewConfig()
 	cfg.Listen = 6882
 	cfg.MinNodes = 100000
+	cfg.ShowTableInterval = 10 * time.Second
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)

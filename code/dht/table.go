@@ -155,7 +155,7 @@ type table struct {
 	cancel context.CancelFunc
 }
 
-func newTable(dht *DHT, k int) *table {
+func newTable(dht *DHT, k int, interval time.Duration) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
@@ -164,9 +164,12 @@ func newTable(dht *DHT, k int) *table {
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go func() {
+		if interval == 0 {
+			return
+		}
 		for {
 			select {
-			case <-time.After(time.Second):
+			case <-time.After(interval):
 				logging.Info("table: %d nodes", tb.size)
 			case <-tb.ctx.Done():
 				return
