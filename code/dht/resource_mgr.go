@@ -185,11 +185,11 @@ func readExtHeader(c net.Conn) (byte, int, int, error) {
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	pieces := hdr.Size / blockSize
-	if pieces == 0 {
+	pieces := float64(hdr.Size)/float64(blockSize) + .5
+	if pieces < 1 {
 		pieces = 1
 	}
-	return byte(hdr.Data.Type), hdr.Size, pieces, nil
+	return byte(hdr.Data.Type), hdr.Size, int(pieces), nil
 }
 
 // http://www.bittorrent.org/beps/bep_0009.html#request
