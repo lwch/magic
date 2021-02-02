@@ -203,6 +203,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		t.Unlock()
 		return
 	}
+	t.dht.even++
 	if t.dht.even%2 == 0 {
 		t.discoverySend(bk.leaf[0], limit)
 		t.discoverySend(bk.leaf[1], limit)
@@ -210,7 +211,6 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		t.discoverySend(bk.leaf[1], limit)
 		t.discoverySend(bk.leaf[0], limit)
 	}
-	t.dht.even++
 }
 
 func (t *table) discovery(limit int) {
