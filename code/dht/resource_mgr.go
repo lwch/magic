@@ -189,7 +189,6 @@ func readExtHeader(c net.Conn) (byte, int, error) {
 	if pieces == 0 {
 		pieces = 1
 	}
-	logging.Info("ut_metadata=%d", hdr.Data.Type)
 	return byte(hdr.Data.Type), pieces, nil
 }
 
