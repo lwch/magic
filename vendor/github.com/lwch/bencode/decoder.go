@@ -170,7 +170,9 @@ func decodeList(r io.Reader, v reflect.Value) error {
 			}
 			slice, err = appendNumber(n, slice)
 		case 'd':
-			if !reset && v.Type().Elem().Kind() != reflect.Interface {
+			if v.Type() != notfoundType &&
+				v.Type().Elem().Kind() != reflect.Interface &&
+				!reset {
 				slice = reflect.MakeSlice(v.Type(), 0, 0)
 				reset = true
 			}
