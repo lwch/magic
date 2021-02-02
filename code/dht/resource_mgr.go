@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -274,6 +275,9 @@ func (mgr *resMgr) get(r resReq) {
 		}
 		err = dec.Decode(&files)
 		if err != nil {
+			if err.Error() == "invalid data of length" {
+				logging.Info("hex: %s", hex.Dump(data))
+			}
 			logging.Error("*GET* decode data body failed, piece=%d"+r.errInfo(err), hdr.Piece)
 			return
 		}
