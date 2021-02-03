@@ -57,12 +57,16 @@ func (mgr *txMgr) find(id string) *tx {
 	return nil
 }
 
-func (mgr *txMgr) clear() {
+func (mgr *txMgr) clear(limit int) {
 	mgr.Lock()
 	defer mgr.Unlock()
 	for k, tx := range mgr.txs {
 		if time.Now().After(tx.deadline) {
 			delete(mgr.txs, k)
+			limit--
+			if limit <= 0 {
+				return
+			}
 		}
 	}
 }
