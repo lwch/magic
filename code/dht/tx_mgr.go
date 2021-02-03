@@ -51,13 +51,19 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 }
 
 func (mgr *txMgr) find(id string) *tx {
+	var node *list.Element
 	mgr.RLock()
-	defer mgr.RUnlock()
-	for node := mgr.list.Back(); node != nil; node = node.Prev() {
+	for node = mgr.list.Back(); node != nil; node = node.Prev() {
 		if node.Value.(tx).id == id {
-			tx := mgr.list.Remove(node).(tx)
-			return &tx
+			break
 		}
+	}
+	mgr.RUnlock()
+	if node != nil {
+		mgr.Lock()
+		tx := mgr.list.Remove(node).(tx)
+		mgr.Unlock()
+		return &tx
 	}
 	return nil
 }
