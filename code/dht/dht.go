@@ -76,7 +76,7 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx:       newTXMgr(cfg.TxTimeout),
+		tx:       newTXMgr(cfg.MinNodes),
 		init:     newInitQueue(),
 		chRead:   make(chan pkt, 1000),
 		minNodes: cfg.MinNodes,
