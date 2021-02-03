@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lwch/magic/code/data"
+	"github.com/lwch/magic/code/logging"
 )
 
 const txBucketSize = 32
@@ -31,6 +32,7 @@ func newTXMgr(timeout time.Duration) *txMgr {
 	for i := 0; i < txBucketSize; i++ {
 		mgr.list[i] = list.New()
 	}
+	go mgr.print()
 	return mgr
 }
 
@@ -99,4 +101,18 @@ func (mgr *txMgr) find(id string) *tx {
 		return &tx
 	}
 	return nil
+}
+
+func (mgr *txMgr) print() {
+	print := func() {
+		size := make([]int, txBucketSize)
+		for i := 0; i < txBucketSize; i++ {
+			size[i] = mgr.list[i].Len()
+		}
+		logging.Info("tx: %v", size)
+	}
+	for {
+		print()
+		time.Sleep(time.Second)
+	}
 }
