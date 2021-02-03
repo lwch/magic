@@ -21,26 +21,25 @@ type node struct {
 }
 
 func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
-	return &node{
-		dht:     dht,
-		id:      id,
-		addr:    addr,
-		updated: time.Now(),
-		chPong:  make(chan struct{}, 10),
-	}
+	n := dht.nodePool.Get().(*node)
+	n.id = id
+	n.addr = addr
+	n.updated = time.Now()
+	n.chPong = make(chan struct{}, 10)
+	return n
 }
 
 func newBootstrapNode(dht *DHT, addr net.UDPAddr) *node {
-	return &node{
-		dht:         dht,
-		id:          data.RandID(),
-		addr:        addr,
-		updated:     time.Now(),
-		isBootstrap: true,
-	}
+	n := dht.nodePool.Get().(*node)
+	n.id = data.RandID()
+	n.addr = addr
+	n.updated = time.Now()
+	n.isBootstrap = true
+	return n
 }
 
 func (n *node) close() {
+	n.dht.nodePool.Put(n)
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html

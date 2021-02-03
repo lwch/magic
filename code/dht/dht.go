@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/lwch/bencode"
@@ -64,6 +65,7 @@ type DHT struct {
 	even     int           // speed control
 	Out      chan MetaInfo // discovery file info
 	Nodes    chan int      // current node count
+	nodePool sync.Pool
 
 	// runtime
 	ctx    context.Context
@@ -80,6 +82,11 @@ func New(cfg *Config) (*DHT, error) {
 		minNodes: cfg.MinNodes,
 		Out:      make(chan MetaInfo),
 		Nodes:    make(chan int),
+	}
+	dht.nodePool = sync.Pool{
+		New: func() interface{} {
+			return &node{dht: dht}
+		},
 	}
 	rand.Read(dht.local[:])
 	dht.tb = newTable(dht, neighborSize)
