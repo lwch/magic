@@ -25,6 +25,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 			n.id.String(), n.addr.String())
 		return
 	}
+	var nodes []*node
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		var id hashType
 		copy(id[:], resp.Response.Nodes[i:i+20])
@@ -46,17 +47,39 @@ func (n *node) onFindNodeResp(buf []byte) {
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		}
-		go func(node *node) {
-			tx := node.sendPing()
-			n.dht.init.push(tx, node)
-			defer n.dht.init.unset(tx)
+		node := newNode(n.dht, id, addr)
+		tx := node.sendPing()
+		n.dht.init.push(tx, node)
+		nodes = append(nodes)
+	}
+	if len(nodes) > 0 {
+		waitNodes(nodes, n.dht.tb)
+	}
+}
+
+func waitNodes(nodes []*node, tb *table) {
+	timeout := time.After(10 * time.Second)
+	done := make([]bool, len(nodes))
+	for {
+		for i, node := range nodes {
+			if done[i] {
+				continue
+			}
 			select {
 			case <-node.chPong:
-				n.dht.tb.add(node)
-			case <-time.After(10 * time.Second):
+				tb.add(node)
+			case <-timeout:
 				return
+			default:
 			}
-		}(newNode(n.dht, id, addr))
+		}
+		for i := 0; i < len(nodes); i++ {
+			if !done[i] {
+				time.Sleep(time.Second)
+				continue
+			}
+		}
+		return
 	}
 }
 
