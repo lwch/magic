@@ -280,7 +280,7 @@ func (mgr *resMgr) get(r resReq, out chan MetaInfo) {
 	for {
 		msgID, _, data, err := readMessage(c)
 		if err != nil {
-			logging.Error("*GET* read peer data failed" + r.errInfo(err))
+			// logging.Error("*GET* read peer data failed" + r.errInfo(err))
 			return
 		}
 		if msgID != extMsgID {
