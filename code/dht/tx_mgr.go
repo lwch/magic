@@ -21,11 +21,10 @@ type txMgr struct {
 	sync.RWMutex
 	list  [txBucketSize]*list.List
 	count int
-	max   int
 }
 
-func newTXMgr(max int) *txMgr {
-	mgr := &txMgr{max: max}
+func newTXMgr() *txMgr {
+	mgr := &txMgr{}
 	for i := 0; i < txBucketSize; i++ {
 		mgr.list[i] = list.New()
 	}
@@ -88,18 +87,4 @@ func (mgr *txMgr) find(id string) *tx {
 		return &tx
 	}
 	return nil
-}
-
-func (mgr *txMgr) clear(limit int) {
-	// mgr.Lock()
-	// defer mgr.Unlock()
-	// for k, tx := range mgr.txs {
-	// 	if time.Now().After(tx.deadline) {
-	// 		delete(mgr.txs, k)
-	// 		limit--
-	// 		if limit <= 0 {
-	// 			return
-	// 		}
-	// 	}
-	// }
 }

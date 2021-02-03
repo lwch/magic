@@ -11,11 +11,17 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+type pingPkt struct {
+	buf  []byte
+	addr net.UDPAddr
+}
+
 type node struct {
 	dht         *DHT
 	id          hashType
 	addr        net.UDPAddr
 	updated     time.Time
+	chPing      chan pingPkt
 	chPong      chan struct{}
 	isBootstrap bool
 }
@@ -65,12 +71,24 @@ func (n *node) sendPing() string {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return ""
 	}
-	_, err = n.dht.listen.WriteTo(buf, &n.addr)
-	if err != nil {
-		logging.Error("send get_peers packet failed" + n.errInfo(err))
+	select {
+	case n.chPing <- pingPkt{
+		buf:  buf,
+		addr: n.addr,
+	}:
+		return tx
+	default:
+		logging.Error("busy ping" + n.info())
 		return ""
 	}
-	return tx
+}
+
+func (n *node) loopPing() {
+	for {
+		pkt := <-n.chPing
+		n.dht.listen.WriteTo(pkt.buf, &pkt.addr)
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func (n *node) sendGet(hash hashType) {
@@ -152,4 +170,9 @@ func (n *node) handleResponse(buf []byte, tx string) {
 func (n *node) errInfo(err error) string {
 	return fmt.Sprintf("; id=%s, addr=%s, err=%v",
 		n.id.String(), n.addr.String(), err)
+}
+
+func (n *node) info() string {
+	return fmt.Sprintf("; id=%s, addr=%s",
+		n.id.String(), n.addr.String())
 }

@@ -76,7 +76,7 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
-		tx:       newTXMgr(cfg.MinNodes),
+		tx:       newTXMgr(),
 		init:     newInitQueue(),
 		chRead:   make(chan pkt, 1000),
 		minNodes: cfg.MinNodes,
@@ -85,7 +85,9 @@ func New(cfg *Config) (*DHT, error) {
 	}
 	dht.nodePool = sync.Pool{
 		New: func() interface{} {
-			return &node{dht: dht}
+			n := &node{dht: dht, chPing: make(chan pingPkt)}
+			go n.loopPing()
+			return n
 		},
 	}
 	rand.Read(dht.local[:])
@@ -153,11 +155,6 @@ func (dht *DHT) handler() {
 		case pkt := <-dht.chRead:
 			dht.handleData(pkt.addr, pkt.data)
 		case <-tk:
-			// dht.even++
-			// if dht.even%1000 == 0 &&
-			// 	dht.tx.size() > 1000 {
-			// 	dht.tx.clear(maxDiscoverySize)
-			// }
 			if dht.tb.size < dht.minNodes {
 				dht.tb.discovery(maxDiscoverySize)
 			} else if dht.tx.size() == 0 {
