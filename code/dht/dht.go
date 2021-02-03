@@ -15,7 +15,7 @@ import (
 )
 
 const neighborSize = 8
-const maxDiscoverySize = 32
+const maxDiscoverySize = 1024
 
 type hashType [20]byte
 
