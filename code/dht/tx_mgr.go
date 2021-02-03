@@ -99,6 +99,7 @@ func (mgr *txMgr) clearTimeout(list *list.List) {
 		if time.Now().After(node.Value.(tx).deadline) {
 			list.Remove(node)
 		}
+		break
 	}
 	mgr.Unlock()
 }
