@@ -33,7 +33,7 @@ func init() {
 
 func main() {
 	cfg := dht.NewConfig()
-	cfg.MinNodes = 1000000
+	cfg.MinNodes = 20000
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
