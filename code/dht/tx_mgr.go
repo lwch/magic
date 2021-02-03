@@ -2,6 +2,7 @@ package dht
 
 import (
 	"container/list"
+	"crypto/md5"
 	"encoding/binary"
 	"sync"
 	"time"
@@ -44,15 +45,10 @@ func (mgr *txMgr) size() int {
 }
 
 func txHash(tx string) int {
-	if len(tx) > 4 {
-		bt := []byte(tx)
-		var hash uint32
-		for i := 0; i < len(bt)/4; i++ {
-			hash += binary.BigEndian.Uint32(bt[i*4:])
-		}
-		return int(hash)
-	}
-	return 0xcccccccc
+	enc := md5.Sum([]byte(tx))
+	a := binary.BigEndian.Uint64(enc[0:])
+	b := binary.BigEndian.Uint64(enc[8:])
+	return int(a + b)
 }
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {

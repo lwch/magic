@@ -1,6 +1,8 @@
 package data
 
 import (
+	"encoding/binary"
+
 	"github.com/lwch/bencode"
 )
 
@@ -24,14 +26,13 @@ var tx2 uint64
 // PingReq build ping request packet
 func PingReq(id [20]byte) ([]byte, string, error) {
 	// optimize
-	// var tx [16]byte
-	// binary.BigEndian.PutUint64(tx[:], tx1)
-	// binary.BigEndian.PutUint64(tx[8:], tx2)
-	// tx2++
-	// if tx2%3 == 0 {
-	// 	tx1++
-	// }
-	tx := Rand(16)
+	var tx [16]byte
+	binary.BigEndian.PutUint64(tx[:], tx1)
+	binary.BigEndian.PutUint64(tx[8:], tx2)
+	tx2++
+	if tx2%3 == 0 {
+		tx1++
+	}
 	data := []byte("d1:y1:q1:q4:ping1:t16:")
 	data = append(data, tx[:]...)
 	data = append(data, []byte("1:ad2:id20:")...)
