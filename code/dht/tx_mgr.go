@@ -9,8 +9,7 @@ import (
 )
 
 type tx struct {
-	id     string // transaction id
-	idHash uint32
+	id     string       // transaction id
 	hash   hashType     // get_peers.info_hash
 	remote hashType     // find_node.target
 	t      data.ReqType // request type
@@ -18,67 +17,71 @@ type tx struct {
 
 type txMgr struct {
 	sync.RWMutex
-	list *list.List
-	max  int
+	list  [1024]*list.List
+	count int
+	max   int
 }
 
 func newTXMgr(max int) *txMgr {
-	return &txMgr{
-		list: list.New(),
-		max:  max,
+	mgr := &txMgr{max: max}
+	for i := 0; i < 1024; i++ {
+		mgr.list[i] = list.New()
 	}
+	return mgr
 }
 
 func (mgr *txMgr) close() {
 }
 
 func (mgr *txMgr) size() int {
-	return mgr.list.Len()
+	return mgr.count
 }
 
-func txHash(tx string) uint32 {
+func txHash(tx string) int {
 	if len(tx) > 4 {
 		bt := []byte(tx)
 		var hash uint32
 		for i := 0; i < len(bt)/4; i++ {
 			hash += binary.BigEndian.Uint32(bt[i*4:])
 		}
-		return hash
+		return int(hash)
 	}
 	return 0xcccccccc
 }
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
-	if mgr.size() >= mgr.max {
+	list := mgr.list[txHash(id)%len(mgr.list)]
+	if list.Len() >= mgr.max {
 		mgr.Lock()
-		mgr.list.Remove(mgr.list.Front())
+		list.Remove(list.Front())
+		mgr.count--
 		mgr.Unlock()
 	}
 	mgr.Lock()
-	mgr.list.PushBack(tx{
+	list.PushBack(tx{
 		id:     id,
-		idHash: txHash(id),
 		hash:   hash,
 		remote: remote,
 		t:      t,
 	})
+	mgr.count++
 	mgr.Unlock()
 }
 
 func (mgr *txMgr) find(id string) *tx {
-	idHash := txHash(id)
+	l := mgr.list[txHash(id)%len(mgr.list)]
 	var node *list.Element
 	mgr.RLock()
-	for node = mgr.list.Back(); node != nil; node = node.Prev() {
-		if node.Value.(tx).idHash == idHash &&
-			node.Value.(tx).id == id {
+	for node = l.Back(); node != nil; node = node.Prev() {
+		if node.Value.(tx).id == id {
 			break
 		}
 	}
 	mgr.RUnlock()
 	if node != nil {
 		mgr.Lock()
-		tx := mgr.list.Remove(node).(tx)
+		tx := l.Remove(node).(tx)
+		mgr.count--
 		mgr.Unlock()
 		return &tx
 	}
