@@ -23,6 +23,7 @@ type node struct {
 	updated     time.Time
 	chPing      chan pingPkt
 	chPong      chan struct{}
+	chClose     chan struct{}
 	isBootstrap bool
 }
 
@@ -32,6 +33,7 @@ func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
 	n.addr = addr
 	n.updated = time.Now()
 	n.chPong = make(chan struct{}, 10)
+	n.chClose = make(chan struct{})
 	return n
 }
 
@@ -45,6 +47,7 @@ func newBootstrapNode(dht *DHT, addr net.UDPAddr) *node {
 }
 
 func (n *node) close() {
+	n.chClose <- struct{}{}
 	n.dht.nodePool.Put(n)
 }
 
@@ -85,9 +88,12 @@ func (n *node) sendPing() string {
 
 func (n *node) loopPing() {
 	for {
-		pkt := <-n.chPing
-		n.dht.listen.WriteTo(pkt.buf, &pkt.addr)
-		time.Sleep(10 * time.Second)
+		select {
+		case pkt := <-n.chPing:
+			n.dht.listen.WriteTo(pkt.buf, &pkt.addr)
+		case <-time.After(10 * time.Second):
+		case <-n.chClose:
+		}
 	}
 }
 
