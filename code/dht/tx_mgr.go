@@ -44,11 +44,11 @@ func (mgr *txMgr) size() int {
 	return mgr.count
 }
 
-func txHash(tx string) int {
+func txHash(tx string) uint {
 	enc := md5.Sum([]byte(tx))
 	a := binary.BigEndian.Uint64(enc[0:])
 	b := binary.BigEndian.Uint64(enc[8:])
-	return int(a + b)
+	return uint(a + b)
 }
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
