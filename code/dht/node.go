@@ -21,9 +21,7 @@ type node struct {
 	id          hashType
 	addr        net.UDPAddr
 	updated     time.Time
-	chPing      chan pingPkt
 	chPong      chan struct{}
-	chClose     chan struct{}
 	isBootstrap bool
 }
 
@@ -33,7 +31,6 @@ func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
 	n.addr = addr
 	n.updated = time.Now()
 	n.chPong = make(chan struct{}, 10)
-	n.chClose = make(chan struct{})
 	return n
 }
 
@@ -47,7 +44,6 @@ func newBootstrapNode(dht *DHT, addr net.UDPAddr) *node {
 }
 
 func (n *node) close() {
-	n.chClose <- struct{}{}
 	n.dht.nodePool.Put(n)
 }
 
@@ -74,27 +70,12 @@ func (n *node) sendPing() string {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return ""
 	}
-	select {
-	case n.chPing <- pingPkt{
-		buf:  buf,
-		addr: n.addr,
-	}:
-		return tx
-	case <-time.After(time.Second):
-		logging.Error("busy ping" + n.info())
+	_, err = n.dht.listen.WriteTo(buf, &n.addr)
+	if err != nil {
+		logging.Error("send get_peers packet failed" + n.errInfo(err))
 		return ""
 	}
-}
-
-func (n *node) loopPing() {
-	for {
-		select {
-		case pkt := <-n.chPing:
-			n.dht.listen.WriteTo(pkt.buf, &pkt.addr)
-		case <-time.After(10 * time.Second):
-		case <-n.chClose:
-		}
-	}
+	return tx
 }
 
 func (n *node) sendGet(hash hashType) {

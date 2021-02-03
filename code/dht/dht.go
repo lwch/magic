@@ -85,9 +85,7 @@ func New(cfg *Config) (*DHT, error) {
 	}
 	dht.nodePool = sync.Pool{
 		New: func() interface{} {
-			n := &node{dht: dht, chPing: make(chan pingPkt)}
-			go n.loopPing()
-			return n
+			return &node{dht: dht}
 		},
 	}
 	rand.Read(dht.local[:])
