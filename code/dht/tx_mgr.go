@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/lwch/magic/code/data"
 )
@@ -11,20 +12,22 @@ import (
 const txBucketSize = 32
 
 type tx struct {
-	id     string       // transaction id
-	hash   hashType     // get_peers.info_hash
-	remote hashType     // find_node.target
-	t      data.ReqType // request type
+	id       string       // transaction id
+	hash     hashType     // get_peers.info_hash
+	remote   hashType     // find_node.target
+	t        data.ReqType // request type
+	deadline time.Time
 }
 
 type txMgr struct {
 	sync.RWMutex
-	list  [txBucketSize]*list.List
-	count int
+	list    [txBucketSize]*list.List
+	count   int
+	timeout time.Duration
 }
 
-func newTXMgr() *txMgr {
-	mgr := &txMgr{}
+func newTXMgr(timeout time.Duration) *txMgr {
+	mgr := &txMgr{timeout: timeout}
 	for i := 0; i < txBucketSize; i++ {
 		mgr.list[i] = list.New()
 	}
@@ -60,10 +63,11 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 	}
 	mgr.Lock()
 	list.PushBack(tx{
-		id:     id,
-		hash:   hash,
-		remote: remote,
-		t:      t,
+		id:       id,
+		hash:     hash,
+		remote:   remote,
+		t:        t,
+		deadline: time.Now().Add(mgr.timeout),
 	})
 	mgr.count++
 	mgr.Unlock()
@@ -71,6 +75,14 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 
 func (mgr *txMgr) find(id string) *tx {
 	l := mgr.list[txHash(id)%txBucketSize]
+	mgr.Lock()
+	if l.Len() > 0 {
+		front := l.Front()
+		if time.Now().After(front.Value.(tx).deadline) {
+			l.Remove(front)
+		}
+	}
+	mgr.Unlock()
 	var node *list.Element
 	mgr.RLock()
 	for node = l.Back(); node != nil; node = node.Prev() {
