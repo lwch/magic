@@ -8,7 +8,7 @@ import (
 	"github.com/lwch/magic/code/data"
 )
 
-const txBucketSize = 1024
+const txBucketSize = 32
 
 type tx struct {
 	id     string       // transaction id
