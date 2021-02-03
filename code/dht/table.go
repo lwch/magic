@@ -124,7 +124,6 @@ func (bk *bucket) clearTimeout() []*node {
 		since := time.Since(element.updated)
 		if !element.isBootstrap && since >= nodeTimeout {
 			logging.Debug("timeout: %s", element.id.String())
-			element.close()
 			removed = append(removed, bk.nodes.Remove(n).(*node))
 			continue
 		} else if since >= nodeSendPing {
@@ -207,6 +206,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
@@ -255,8 +255,9 @@ func (t *table) remove(n *node) {
 		if !node.id.equal(n.id) {
 			continue
 		}
-		bk.nodes.Remove(nd)
 		delete(t.addrIndex, n.addr.String())
+		bk.nodes.Remove(nd)
+		node.close()
 		t.size--
 	}
 }
@@ -274,6 +275,7 @@ func (t *table) findAddr(addr net.Addr) *node {
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
@@ -295,6 +297,7 @@ func (t *table) findID(id hashType) *node {
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
@@ -316,6 +319,7 @@ func (t *table) neighbor(id hashType) []*node {
 	t.Lock()
 	for _, node := range bk.clearTimeout() {
 		delete(t.addrIndex, node.addr.String())
+		node.close()
 		t.size--
 	}
 	t.Unlock()
