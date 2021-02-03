@@ -16,9 +16,8 @@ type tx struct {
 
 type txMgr struct {
 	sync.RWMutex
-	list   *list.List
-	filter uint64
-	max    int
+	list *list.List
+	max  int
 }
 
 func newTXMgr(max int) *txMgr {
