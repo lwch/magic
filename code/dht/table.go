@@ -2,6 +2,7 @@ package dht
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"net"
 	"sync"
@@ -17,7 +18,7 @@ const nodeSendPing = 10 * time.Second
 type bucket struct {
 	sync.RWMutex
 	prefix hashType
-	nodes  []*node
+	nodes  *list.List
 	leaf   [2]*bucket
 	bits   int
 }
@@ -35,33 +36,33 @@ func (bk *bucket) addNode(n *node, k int) bool {
 		// TODO: update
 		return false
 	}
-	if len(bk.nodes) >= k {
+	if bk.nodes.Len() >= k {
 		loopSplit(bk, k)
 		target := bk.search(n.id)
 		if target.exists(n.id) {
 			// TODO: update
 			return false
 		}
-		target.nodes = append(target.nodes, n)
+		target.nodes.PushBack(n)
 		return true
 	}
-	bk.nodes = append(bk.nodes, n)
+	bk.nodes.PushBack(n)
 	return true
 }
 
 func loopSplit(bk *bucket, k int) {
 	bk.split()
-	if len(bk.leaf[0].nodes) >= k {
+	if bk.leaf[0].nodes.Len() >= k {
 		loopSplit(bk.leaf[0], k)
 	}
-	if len(bk.leaf[1].nodes) >= k {
+	if bk.leaf[1].nodes.Len() >= k {
 		loopSplit(bk.leaf[1], k)
 	}
 }
 
 func (bk *bucket) exists(id hashType) bool {
-	for _, node := range bk.nodes {
-		if bytes.Equal(node.id[:], id[:]) {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		if bytes.Equal(n.Value.(*node).id[:], id[:]) {
 			return true
 		}
 	}
@@ -87,11 +88,12 @@ func (bk *bucket) split() {
 		id[bt] |= 1 << (7 - bit)
 		bk.leaf[1] = newBucket(id, bk.bits+1)
 	}
-	for _, node := range bk.nodes {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		node := n.Value.(*node)
 		if bk.leaf[0].equalBits(node.id) {
-			bk.leaf[0].nodes = append(bk.leaf[0].nodes, node)
+			bk.leaf[0].nodes.PushBack(node)
 		} else {
-			bk.leaf[1].nodes = append(bk.leaf[1].nodes, node)
+			bk.leaf[1].nodes.PushBack(node)
 		}
 	}
 	bk.nodes = nil
@@ -116,28 +118,37 @@ func (bk *bucket) equalBits(id hashType) bool {
 func (bk *bucket) clearTimeout() []*node {
 	bk.Lock()
 	defer bk.Unlock()
-	removed := make([]*node, 0, len(bk.nodes))
-	nodes := make([]*node, 0, len(bk.nodes))
-	for _, node := range bk.nodes {
-		since := time.Since(node.updated)
-		if !node.isBootstrap && since >= nodeTimeout {
-			logging.Debug("timeout: %s", node.id.String())
-			node.close()
-			removed = append(removed, node)
+	removed := make([]*node, 0, bk.nodes.Len())
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		element := n.Value.(*node)
+		since := time.Since(element.updated)
+		if !element.isBootstrap && since >= nodeTimeout {
+			logging.Debug("timeout: %s", element.id.String())
+			element.close()
+			removed = append(removed, bk.nodes.Remove(n).(*node))
 			continue
 		} else if since >= nodeSendPing {
-			tx := node.sendPing()
-			node.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
+			tx := element.sendPing()
+			element.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 		}
-		nodes = append(nodes, node)
 	}
-	bk.nodes = nodes
 	return removed
+}
+
+func (bk *bucket) getNodes() []*node {
+	bk.RLock()
+	defer bk.RUnlock()
+	ret := make([]*node, 0, bk.nodes.Len())
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		ret = append(ret, n.Value.(*node))
+	}
+	return ret
 }
 
 func newBucket(prefix hashType, bits int) *bucket {
 	return &bucket{
 		prefix: prefix,
+		nodes:  list.New(),
 		bits:   bits,
 	}
 }
@@ -189,10 +200,10 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		return
 	}
 	if bk.isLeaf() {
-		for _, node := range bk.nodes {
-			node.sendDiscovery()
+		for n := bk.nodes.Front(); n != nil; n = n.Next() {
+			n.Value.(*node).sendDiscovery()
 		}
-		*limit -= len(bk.nodes)
+		*limit -= bk.nodes.Len()
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
@@ -239,11 +250,12 @@ func (t *table) remove(n *node) {
 	t.Lock()
 	defer t.Unlock()
 	bk := t.root.search(n.id)
-	for i, node := range bk.nodes {
+	for nd := bk.nodes.Front(); nd != nil; nd = nd.Next() {
+		node := nd.Value.(*node)
 		if !node.id.equal(n.id) {
 			continue
 		}
-		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
+		bk.nodes.Remove(nd)
 		delete(t.addrIndex, n.addr.String())
 		t.size--
 	}
@@ -287,7 +299,8 @@ func (t *table) findID(id hashType) *node {
 		}
 		t.Unlock()
 	}()
-	for _, node := range bk.nodes {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		node := n.Value.(*node)
 		if node.id.equal(id) {
 			return node
 		}
@@ -306,5 +319,5 @@ func (t *table) neighbor(id hashType) []*node {
 		t.size--
 	}
 	t.Unlock()
-	return bk.nodes
+	return bk.getNodes()
 }
