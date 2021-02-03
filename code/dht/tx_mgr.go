@@ -57,6 +57,7 @@ func txHash(tx string) int {
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
 	list := mgr.list[txHash(id)%txBucketSize]
+	mgr.clearTimeout(list)
 	if list.Len() >= 1000 {
 		mgr.Lock()
 		list.Remove(list.Front())
@@ -77,14 +78,7 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 
 func (mgr *txMgr) find(id string) *tx {
 	l := mgr.list[txHash(id)%txBucketSize]
-	mgr.Lock()
-	if l.Len() > 0 {
-		front := l.Front()
-		if time.Now().After(front.Value.(tx).deadline) {
-			l.Remove(front)
-		}
-	}
-	mgr.Unlock()
+	mgr.clearTimeout(l)
 	var node *list.Element
 	mgr.RLock()
 	for node = l.Back(); node != nil; node = node.Prev() {
@@ -101,6 +95,16 @@ func (mgr *txMgr) find(id string) *tx {
 		return &tx
 	}
 	return nil
+}
+
+func (mgr *txMgr) clearTimeout(list *list.List) {
+	mgr.Lock()
+	for node := list.Front(); node != nil; node = node.Next() {
+		if time.Now().After(node.Value.(tx).deadline) {
+			list.Remove(node)
+		}
+	}
+	mgr.Unlock()
 }
 
 func (mgr *txMgr) print() {
