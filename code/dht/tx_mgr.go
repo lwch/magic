@@ -8,6 +8,8 @@ import (
 	"github.com/lwch/magic/code/data"
 )
 
+const txBucketSize = 1024
+
 type tx struct {
 	id     string       // transaction id
 	hash   hashType     // get_peers.info_hash
@@ -17,14 +19,14 @@ type tx struct {
 
 type txMgr struct {
 	sync.RWMutex
-	list  [1024]*list.List
+	list  [txBucketSize]*list.List
 	count int
 	max   int
 }
 
 func newTXMgr(max int) *txMgr {
 	mgr := &txMgr{max: max}
-	for i := 0; i < 1024; i++ {
+	for i := 0; i < txBucketSize; i++ {
 		mgr.list[i] = list.New()
 	}
 	return mgr
@@ -50,8 +52,8 @@ func txHash(tx string) int {
 }
 
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
-	list := mgr.list[txHash(id)%len(mgr.list)]
-	if list.Len() >= mgr.max {
+	list := mgr.list[txHash(id)%txBucketSize]
+	if list.Len() >= 1000 {
 		mgr.Lock()
 		list.Remove(list.Front())
 		mgr.count--
@@ -69,7 +71,7 @@ func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType)
 }
 
 func (mgr *txMgr) find(id string) *tx {
-	l := mgr.list[txHash(id)%len(mgr.list)]
+	l := mgr.list[txHash(id)%txBucketSize]
 	var node *list.Element
 	mgr.RLock()
 	for node = l.Back(); node != nil; node = node.Prev() {
