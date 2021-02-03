@@ -80,7 +80,7 @@ func (n *node) sendPing() string {
 		addr: n.addr,
 	}:
 		return tx
-	default:
+	case <-time.After(time.Second):
 		logging.Error("busy ping" + n.info())
 		return ""
 	}
