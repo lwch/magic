@@ -12,7 +12,9 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+// average in 300~400 per bucket
 const txBucketSize = 128
+const maxTxBucketSize = 1000
 
 type tx struct {
 	id       string       // transaction id
@@ -34,7 +36,7 @@ func newTXMgr(timeout time.Duration) *txMgr {
 	for i := 0; i < txBucketSize; i++ {
 		mgr.list[i] = list.New()
 	}
-	go mgr.print()
+	// go mgr.print()
 	return mgr
 }
 
@@ -55,7 +57,7 @@ func txHash(tx string) uint {
 func (mgr *txMgr) add(id string, t data.ReqType, hash hashType, remote hashType) {
 	list := mgr.list[txHash(id)%txBucketSize]
 	mgr.clearTimeout(list)
-	if list.Len() >= 1000 {
+	if list.Len() >= maxTxBucketSize {
 		mgr.Lock()
 		list.Remove(list.Front())
 		mgr.count--
