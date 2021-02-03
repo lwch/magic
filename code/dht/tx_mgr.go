@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"crypto/md5"
 	"encoding/binary"
+	"math"
 	"sync"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
-const txBucketSize = 32
+const txBucketSize = 128
 
 type tx struct {
 	id       string       // transaction id
@@ -106,11 +107,19 @@ func (mgr *txMgr) clearTimeout(list *list.List) {
 
 func (mgr *txMgr) print() {
 	print := func() {
+		min := math.MaxInt64
+		max := 0
 		size := make([]int, txBucketSize)
 		for i := 0; i < txBucketSize; i++ {
 			size[i] = mgr.list[i].Len()
+			if size[i] < min {
+				min = size[i]
+			}
+			if size[i] > max {
+				max = size[i]
+			}
 		}
-		logging.Info("tx: %v", size)
+		logging.Info("tx: min=%d, max=%d, list=%v", min, max, size)
 	}
 	for {
 		print()
