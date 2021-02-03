@@ -50,6 +50,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 		node := newNode(n.dht, id, addr)
 		tx := node.sendPing()
 		n.dht.init.push(tx, node)
+		defer n.dht.init.unset(tx)
 		nodes = append(nodes)
 	}
 	if len(nodes) > 0 {
