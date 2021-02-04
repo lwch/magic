@@ -131,6 +131,9 @@ func (bk *bucket) equalBits(id hashType) bool {
 func (bk *bucket) clearTimeout() []*node {
 	bk.Lock()
 	defer bk.Unlock()
+	if bk.nodes == nil {
+		return nil
+	}
 	removed := make([]*node, 0, bk.nodes.Len())
 	for n := bk.nodes.Front(); n != nil; n = n.Next() {
 		element := n.Value.(*node)
