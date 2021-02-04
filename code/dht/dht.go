@@ -3,7 +3,6 @@ package dht
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"fmt"
 	"net"
 	"sync"
@@ -76,6 +75,7 @@ type DHT struct {
 func New(cfg *Config) (*DHT, error) {
 	cfg.checkDefault()
 	dht := &DHT{
+		local:    data.RandID(),
 		tx:       newTXMgr(cfg.TxTimeout),
 		init:     newInitQueue(),
 		chRead:   make(chan pkt, 1000),
@@ -88,7 +88,7 @@ func New(cfg *Config) (*DHT, error) {
 			return &node{dht: dht}
 		},
 	}
-	rand.Read(dht.local[:])
+	// rand.Read(dht.local[:])
 	dht.tb = newTable(dht, neighborSize)
 	dht.res = newResMgr(dht)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
