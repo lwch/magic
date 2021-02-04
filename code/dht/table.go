@@ -52,10 +52,10 @@ func (bk *bucket) addNode(n *node, k, maxBits int) bool {
 
 func loopSplit(bk *bucket, k, maxBits int) {
 	bk.split(maxBits)
-	if bk.leaf[0].nodes.Len() >= k {
+	if bk.leaf[0] != nil && bk.leaf[0].nodes.Len() >= k {
 		loopSplit(bk.leaf[0], k, maxBits)
 	}
-	if bk.leaf[1].nodes.Len() >= k {
+	if bk.leaf[1] != nil && bk.leaf[1].nodes.Len() >= k {
 		loopSplit(bk.leaf[1], k, maxBits)
 	}
 }
