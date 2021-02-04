@@ -7,7 +7,6 @@ type Config struct {
 	Listen    uint16        // Default: 6881
 	MinNodes  int           // Default: 10000
 	TxTimeout time.Duration // Default: 30s
-	MaxToken  int           // Default: 10000
 }
 
 // NewConfig create default config
@@ -26,8 +25,5 @@ func (cfg *Config) checkDefault() {
 	}
 	if cfg.TxTimeout <= 0 {
 		cfg.TxTimeout = 30 * time.Second
-	}
-	if cfg.MaxToken <= 0 {
-		cfg.MaxToken = 10000
 	}
 }
