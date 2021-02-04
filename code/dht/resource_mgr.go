@@ -151,7 +151,7 @@ func sendMessage(c net.Conn, msgID, extID byte, payload []byte) error {
 
 // http://www.bittorrent.org/beps/bep_0010.html
 func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
-	c.SetReadDeadline(time.Now().Add(time.Minute))
+	c.SetReadDeadline(time.Now().Add(10 * time.Second))
 	var l uint32
 	err := binary.Read(c, binary.BigEndian, &l)
 	if err != nil {
