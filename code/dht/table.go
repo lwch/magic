@@ -85,6 +85,14 @@ func (bk *bucket) split() {
 	if bk.leaf[1] == nil {
 		bt := bk.bits / 8
 		bit := bk.bits % 8
+		if bt == 20 {
+			// TODO: panic debug
+			var ids []string
+			for n := bk.nodes.Front(); n != nil; n = n.Next() {
+				ids = append(ids, n.Value.(*node).id.String())
+			}
+			logging.Info("overflow: prefix=%s, ids=%v", bk.prefix.String(), ids)
+		}
 		id[bt] |= 1 << (7 - bit)
 		bk.leaf[1] = newBucket(id, bk.bits+1)
 	}
