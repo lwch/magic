@@ -64,11 +64,14 @@ func (n *node) sendDiscovery() {
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
-func (n *node) sendPing() string {
+func (n *node) sendPing(queue *initQueue) string {
 	buf, tx, err := data.PingReq(n.dht.local)
 	if err != nil {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return ""
+	}
+	if queue != nil {
+		queue.push(tx, n)
 	}
 	_, err = n.dht.listen.WriteTo(buf, &n.addr)
 	if err != nil {

@@ -140,7 +140,7 @@ func (bk *bucket) clearTimeout() []*node {
 			removed = append(removed, bk.nodes.Remove(n).(*node))
 			continue
 		} else if since >= nodeSendPing {
-			tx := element.sendPing()
+			tx := element.sendPing(nil)
 			element.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 		}
 	}

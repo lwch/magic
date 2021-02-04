@@ -26,6 +26,7 @@ func (n *node) onFindNodeResp(buf []byte) {
 		return
 	}
 	var nodes []*node
+	var txs []string
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		var id hashType
 		copy(id[:], resp.Response.Nodes[i:i+20])
@@ -48,19 +49,26 @@ func (n *node) onFindNodeResp(buf []byte) {
 			Port: int(port),
 		}
 		node := newNode(n.dht, id, addr)
-		tx := node.sendPing()
-		n.dht.init.push(tx, node)
-		defer n.dht.init.unset(tx)
-		nodes = append(nodes)
+		tx := node.sendPing(n.dht.init)
+		nodes = append(nodes, node)
+		txs = append(txs, tx)
 	}
 	if len(nodes) > 0 {
-		waitNodes(nodes, n.dht.tb)
+		go func(nodes []*node, txs []string) {
+			defer func() {
+				for _, tx := range txs {
+					n.dht.init.unset(tx)
+				}
+			}()
+			waitNodes(nodes, n.dht.tb)
+		}(nodes, txs)
 	}
 }
 
 func waitNodes(nodes []*node, tb *table) {
 	timeout := time.After(10 * time.Second)
 	done := make([]bool, len(nodes))
+loop:
 	for {
 		for i, node := range nodes {
 			if done[i] {
@@ -69,6 +77,7 @@ func waitNodes(nodes []*node, tb *table) {
 			select {
 			case <-node.chPong:
 				tb.add(node)
+				done[i] = true
 			case <-timeout:
 				return
 			default:
@@ -77,7 +86,7 @@ func waitNodes(nodes []*node, tb *table) {
 		for i := 0; i < len(nodes); i++ {
 			if !done[i] {
 				time.Sleep(time.Second)
-				continue
+				continue loop
 			}
 		}
 		return
