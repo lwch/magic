@@ -29,7 +29,7 @@ func (bk *bucket) isLeaf() bool {
 	return bk.leaf[0] == nil && bk.leaf[1] == nil
 }
 
-func (bk *bucket) addNode(n *node, k int) bool {
+func (bk *bucket) addNode(n *node, k, maxBits int) bool {
 	bk.Lock()
 	defer bk.Unlock()
 	if bk.exists(n.id) {
@@ -37,7 +37,7 @@ func (bk *bucket) addNode(n *node, k int) bool {
 		return false
 	}
 	if bk.nodes.Len() >= k {
-		loopSplit(bk, k)
+		loopSplit(bk, k, maxBits)
 		target := bk.search(n.id)
 		if target.exists(n.id) {
 			// TODO: update
@@ -50,13 +50,13 @@ func (bk *bucket) addNode(n *node, k int) bool {
 	return true
 }
 
-func loopSplit(bk *bucket, k int) {
-	bk.split()
+func loopSplit(bk *bucket, k, maxBits int) {
+	bk.split(maxBits)
 	if bk.leaf[0].nodes.Len() >= k {
-		loopSplit(bk.leaf[0], k)
+		loopSplit(bk.leaf[0], k, maxBits)
 	}
 	if bk.leaf[1].nodes.Len() >= k {
-		loopSplit(bk.leaf[1], k)
+		loopSplit(bk.leaf[1], k, maxBits)
 	}
 }
 
@@ -76,7 +76,10 @@ func (bk *bucket) search(id hashType) *bucket {
 	return bk.leaf[id.bit(bk.bits)].search(id)
 }
 
-func (bk *bucket) split() {
+func (bk *bucket) split(maxBits int) {
+	if bk.bits >= maxBits {
+		return
+	}
 	var id hashType
 	copy(id[:], bk.prefix[:])
 	if bk.leaf[0] == nil {
@@ -169,10 +172,20 @@ type table struct {
 	addrIndex map[string]*node
 	k         int
 	size      int
+	maxBits   int
 
 	// runtime
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+func bits(n int) int {
+	var size int
+	for n != 0 {
+		size++
+		n /= 2
+	}
+	return size
 }
 
 func newTable(dht *DHT, k int) *table {
@@ -181,6 +194,7 @@ func newTable(dht *DHT, k int) *table {
 		root:      newBucket(emptyHash, 0),
 		addrIndex: make(map[string]*node),
 		k:         k,
+		maxBits:   len(emptyHash)*8 - bits(k),
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go func() {
@@ -242,7 +256,7 @@ func (t *table) add(n *node) bool {
 	next := t.root
 	for idx := 0; idx < len(n.id)*8; idx++ {
 		if next.isLeaf() {
-			ok := next.addNode(n, t.k)
+			ok := next.addNode(n, t.k, t.maxBits)
 			if ok {
 				t.addrIndex[n.addr.String()] = n
 				t.size++
