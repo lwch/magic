@@ -11,6 +11,11 @@ import (
 	"github.com/lwch/magic/code/logging"
 )
 
+type pingPkt struct {
+	buf  []byte
+	addr net.UDPAddr
+}
+
 type node struct {
 	dht         *DHT
 	id          hashType
@@ -21,26 +26,25 @@ type node struct {
 }
 
 func newNode(dht *DHT, id hashType, addr net.UDPAddr) *node {
-	return &node{
-		dht:     dht,
-		id:      id,
-		addr:    addr,
-		updated: time.Now(),
-		chPong:  make(chan struct{}),
-	}
+	n := dht.nodePool.Get().(*node)
+	n.id = id
+	n.addr = addr
+	n.updated = time.Now()
+	n.chPong = make(chan struct{}, 10)
+	return n
 }
 
 func newBootstrapNode(dht *DHT, addr net.UDPAddr) *node {
-	return &node{
-		dht:         dht,
-		id:          data.RandID(),
-		addr:        addr,
-		updated:     time.Now(),
-		isBootstrap: true,
-	}
+	n := dht.nodePool.Get().(*node)
+	n.id = data.RandID()
+	n.addr = addr
+	n.updated = time.Now()
+	n.isBootstrap = true
+	return n
 }
 
 func (n *node) close() {
+	n.dht.nodePool.Put(n)
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
@@ -60,11 +64,14 @@ func (n *node) sendDiscovery() {
 	n.dht.tx.add(tx, data.TypeFindNode, emptyHash, n.id)
 }
 
-func (n *node) sendPing() string {
+func (n *node) sendPing(queue *initQueue) string {
 	buf, tx, err := data.PingReq(n.dht.local)
 	if err != nil {
 		logging.Error("build get_peers packet failed" + n.errInfo(err))
 		return ""
+	}
+	if queue != nil {
+		queue.push(tx, n)
 	}
 	_, err = n.dht.listen.WriteTo(buf, &n.addr)
 	if err != nil {
@@ -153,4 +160,9 @@ func (n *node) handleResponse(buf []byte, tx string) {
 func (n *node) errInfo(err error) string {
 	return fmt.Sprintf("; id=%s, addr=%s, err=%v",
 		n.id.String(), n.addr.String(), err)
+}
+
+func (n *node) info() string {
+	return fmt.Sprintf("; id=%s, addr=%s",
+		n.id.String(), n.addr.String())
 }

@@ -4,11 +4,10 @@ import "time"
 
 // Config dht config
 type Config struct {
-	Listen            uint16        // Default: 6881
-	MinNodes          int           // Default: 10000
-	TxTimeout         time.Duration // Default: 30s
-	MaxToken          int           // Default: 10000
-	ShowTableInterval time.Duration // 0=not show, >0=interval Default: 0
+	Listen    uint16        // Default: 6881
+	MinNodes  int           // Default: 10000
+	TxTimeout time.Duration // Default: 30s
+	MaxToken  int           // Default: 10000
 }
 
 // NewConfig create default config

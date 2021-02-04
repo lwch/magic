@@ -2,6 +2,7 @@ package dht
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"net"
 	"sync"
@@ -17,7 +18,7 @@ const nodeSendPing = 10 * time.Second
 type bucket struct {
 	sync.RWMutex
 	prefix hashType
-	nodes  []*node
+	nodes  *list.List
 	leaf   [2]*bucket
 	bits   int
 }
@@ -28,40 +29,40 @@ func (bk *bucket) isLeaf() bool {
 	return bk.leaf[0] == nil && bk.leaf[1] == nil
 }
 
-func (bk *bucket) addNode(n *node, k int) bool {
+func (bk *bucket) addNode(n *node, k, maxBits int) bool {
 	bk.Lock()
 	defer bk.Unlock()
 	if bk.exists(n.id) {
 		// TODO: update
 		return false
 	}
-	if len(bk.nodes) >= k {
-		loopSplit(bk, k)
+	if bk.nodes.Len() >= k {
+		loopSplit(bk, k, maxBits)
 		target := bk.search(n.id)
 		if target.exists(n.id) {
 			// TODO: update
 			return false
 		}
-		target.nodes = append(target.nodes, n)
+		target.nodes.PushBack(n)
 		return true
 	}
-	bk.nodes = append(bk.nodes, n)
+	bk.nodes.PushBack(n)
 	return true
 }
 
-func loopSplit(bk *bucket, k int) {
-	bk.split()
-	if len(bk.leaf[0].nodes) >= k {
-		loopSplit(bk.leaf[0], k)
+func loopSplit(bk *bucket, k, maxBits int) {
+	bk.split(maxBits)
+	if bk.leaf[0].nodes.Len() >= k {
+		loopSplit(bk.leaf[0], k, maxBits)
 	}
-	if len(bk.leaf[1].nodes) >= k {
-		loopSplit(bk.leaf[1], k)
+	if bk.leaf[1].nodes.Len() >= k {
+		loopSplit(bk.leaf[1], k, maxBits)
 	}
 }
 
 func (bk *bucket) exists(id hashType) bool {
-	for _, node := range bk.nodes {
-		if bytes.Equal(node.id[:], id[:]) {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		if bytes.Equal(n.Value.(*node).id[:], id[:]) {
 			return true
 		}
 	}
@@ -75,7 +76,10 @@ func (bk *bucket) search(id hashType) *bucket {
 	return bk.leaf[id.bit(bk.bits)].search(id)
 }
 
-func (bk *bucket) split() {
+func (bk *bucket) split(maxBits int) {
+	if bk.bits >= maxBits {
+		return
+	}
 	var id hashType
 	copy(id[:], bk.prefix[:])
 	if bk.leaf[0] == nil {
@@ -84,14 +88,25 @@ func (bk *bucket) split() {
 	if bk.leaf[1] == nil {
 		bt := bk.bits / 8
 		bit := bk.bits % 8
+		if bt == 20 {
+			// TODO: panic debug
+			var ids []string
+			var equals []bool
+			for n := bk.nodes.Front(); n != nil; n = n.Next() {
+				ids = append(ids, n.Value.(*node).id.String())
+				equals = append(equals, bk.equalBits(n.Value.(*node).id))
+			}
+			logging.Info("overflow: prefix=%s, ids=%v, equals=%v", bk.prefix.String(), ids, equals)
+		}
 		id[bt] |= 1 << (7 - bit)
 		bk.leaf[1] = newBucket(id, bk.bits+1)
 	}
-	for _, node := range bk.nodes {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		node := n.Value.(*node)
 		if bk.leaf[0].equalBits(node.id) {
-			bk.leaf[0].nodes = append(bk.leaf[0].nodes, node)
+			bk.leaf[0].nodes.PushBack(node)
 		} else {
-			bk.leaf[1].nodes = append(bk.leaf[1].nodes, node)
+			bk.leaf[1].nodes.PushBack(node)
 		}
 	}
 	bk.nodes = nil
@@ -116,28 +131,36 @@ func (bk *bucket) equalBits(id hashType) bool {
 func (bk *bucket) clearTimeout() []*node {
 	bk.Lock()
 	defer bk.Unlock()
-	removed := make([]*node, 0, len(bk.nodes))
-	nodes := make([]*node, 0, len(bk.nodes))
-	for _, node := range bk.nodes {
-		since := time.Since(node.updated)
-		if !node.isBootstrap && since >= nodeTimeout {
-			logging.Debug("timeout: %s", node.id.String())
-			node.close()
-			removed = append(removed, node)
+	removed := make([]*node, 0, bk.nodes.Len())
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		element := n.Value.(*node)
+		since := time.Since(element.updated)
+		if !element.isBootstrap && since >= nodeTimeout {
+			logging.Debug("timeout: %s", element.id.String())
+			removed = append(removed, bk.nodes.Remove(n).(*node))
 			continue
 		} else if since >= nodeSendPing {
-			tx := node.sendPing()
-			node.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
+			tx := element.sendPing(nil)
+			element.dht.tx.add(tx, data.TypePing, emptyHash, emptyHash)
 		}
-		nodes = append(nodes, node)
 	}
-	bk.nodes = nodes
 	return removed
+}
+
+func (bk *bucket) getNodes() []*node {
+	bk.RLock()
+	defer bk.RUnlock()
+	ret := make([]*node, 0, bk.nodes.Len())
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		ret = append(ret, n.Value.(*node))
+	}
+	return ret
 }
 
 func newBucket(prefix hashType, bits int) *bucket {
 	return &bucket{
 		prefix: prefix,
+		nodes:  list.New(),
 		bits:   bits,
 	}
 }
@@ -149,28 +172,37 @@ type table struct {
 	addrIndex map[string]*node
 	k         int
 	size      int
+	maxBits   int
 
 	// runtime
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func newTable(dht *DHT, k int, interval time.Duration) *table {
+func bits(n int) int {
+	var size int
+	for n != 0 {
+		size++
+		n /= 2
+	}
+	return size
+}
+
+func newTable(dht *DHT, k int) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
 		addrIndex: make(map[string]*node),
 		k:         k,
+		maxBits:   len(emptyHash)*8 - bits(k),
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go func() {
-		if interval == 0 {
-			return
-		}
+		tk := time.Tick(time.Second)
 		for {
 			select {
-			case <-time.After(interval):
-				logging.Info("table: %d nodes", tb.size)
+			case <-tk:
+				dht.Nodes <- tb.size
 			case <-tb.ctx.Done():
 				return
 			}
@@ -191,18 +223,20 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		return
 	}
 	if bk.isLeaf() {
-		for _, node := range bk.nodes {
-			node.sendDiscovery()
+		for n := bk.nodes.Front(); n != nil; n = n.Next() {
+			n.Value.(*node).sendDiscovery()
 		}
-		*limit -= len(bk.nodes)
+		*limit -= bk.nodes.Len()
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
 		return
 	}
+	t.dht.even++
 	if t.dht.even%2 == 0 {
 		t.discoverySend(bk.leaf[0], limit)
 		t.discoverySend(bk.leaf[1], limit)
@@ -210,7 +244,6 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 		t.discoverySend(bk.leaf[1], limit)
 		t.discoverySend(bk.leaf[0], limit)
 	}
-	t.dht.even++
 }
 
 func (t *table) discovery(limit int) {
@@ -223,7 +256,7 @@ func (t *table) add(n *node) bool {
 	next := t.root
 	for idx := 0; idx < len(n.id)*8; idx++ {
 		if next.isLeaf() {
-			ok := next.addNode(n, t.k)
+			ok := next.addNode(n, t.k, t.maxBits)
 			if ok {
 				t.addrIndex[n.addr.String()] = n
 				t.size++
@@ -241,12 +274,14 @@ func (t *table) remove(n *node) {
 	t.Lock()
 	defer t.Unlock()
 	bk := t.root.search(n.id)
-	for i, node := range bk.nodes {
+	for nd := bk.nodes.Front(); nd != nil; nd = nd.Next() {
+		node := nd.Value.(*node)
 		if !node.id.equal(n.id) {
 			continue
 		}
-		bk.nodes = append(bk.nodes[:i], bk.nodes[i+1:]...)
 		delete(t.addrIndex, n.addr.String())
+		bk.nodes.Remove(nd)
+		node.close()
 		t.size--
 	}
 }
@@ -264,6 +299,7 @@ func (t *table) findAddr(addr net.Addr) *node {
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
@@ -285,11 +321,13 @@ func (t *table) findID(id hashType) *node {
 		t.Lock()
 		for _, node := range bk.clearTimeout() {
 			delete(t.addrIndex, node.addr.String())
+			node.close()
 			t.size--
 		}
 		t.Unlock()
 	}()
-	for _, node := range bk.nodes {
+	for n := bk.nodes.Front(); n != nil; n = n.Next() {
+		node := n.Value.(*node)
 		if node.id.equal(id) {
 			return node
 		}
@@ -305,8 +343,9 @@ func (t *table) neighbor(id hashType) []*node {
 	t.Lock()
 	for _, node := range bk.clearTimeout() {
 		delete(t.addrIndex, node.addr.String())
+		node.close()
 		t.size--
 	}
 	t.Unlock()
-	return bk.nodes
+	return bk.getNodes()
 }

@@ -25,6 +25,8 @@ func (n *node) onFindNodeResp(buf []byte) {
 			n.id.String(), n.addr.String())
 		return
 	}
+	var nodes []*node
+	var txs []string
 	for i := 0; i < len(resp.Response.Nodes); i += 26 {
 		var id hashType
 		copy(id[:], resp.Response.Nodes[i:i+20])
@@ -46,17 +48,48 @@ func (n *node) onFindNodeResp(buf []byte) {
 			IP:   net.IP(ip[:]),
 			Port: int(port),
 		}
-		go func(node *node) {
-			tx := node.sendPing()
-			n.dht.init.push(tx, node)
-			defer n.dht.init.unset(tx)
+		node := newNode(n.dht, id, addr)
+		tx := node.sendPing(n.dht.init)
+		nodes = append(nodes, node)
+		txs = append(txs, tx)
+	}
+	if len(nodes) > 0 {
+		go func(nodes []*node, txs []string) {
+			defer func() {
+				for _, tx := range txs {
+					n.dht.init.unset(tx)
+				}
+			}()
+			waitNodes(nodes, n.dht.tb)
+		}(nodes, txs)
+	}
+}
+
+func waitNodes(nodes []*node, tb *table) {
+	timeout := time.After(10 * time.Second)
+	done := make([]bool, len(nodes))
+loop:
+	for {
+		for i, node := range nodes {
+			if done[i] {
+				continue
+			}
 			select {
 			case <-node.chPong:
-				n.dht.tb.add(node)
-			case <-time.After(10 * time.Second):
+				tb.add(node)
+				done[i] = true
+			case <-timeout:
 				return
+			default:
 			}
-		}(newNode(n.dht, id, addr))
+		}
+		for i := 0; i < len(nodes); i++ {
+			if !done[i] {
+				time.Sleep(time.Second)
+				continue loop
+			}
+		}
+		return
 	}
 }
 
@@ -77,7 +110,7 @@ func (n *node) onGetPeersResp(buf []byte, hash hashType) {
 	var found data.GetPeersResponse
 	err = bencode.Decode(buf, &found)
 	if err != nil {
-		logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
+		// logging.Error("decode get_peers response(found) failed" + n.errInfo(err))
 		return
 	}
 	// n.dht.tk.add(found.Response.Token, hash, n.id)
