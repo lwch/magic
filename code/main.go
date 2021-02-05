@@ -34,6 +34,19 @@ func init() {
 func main() {
 	cfg := dht.NewConfig()
 	cfg.MinNodes = 100000
+	cfg.NodeFilter = func(id [20]byte) bool {
+		// save xunlei nodes
+		if id[0] != '-' {
+			return true
+		}
+		if id[1] != 'X' {
+			return true
+		}
+		if id[2] != 'L' {
+			return true
+		}
+		return false
+	}
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)

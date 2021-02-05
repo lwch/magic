@@ -89,7 +89,7 @@ func New(cfg *Config) (*DHT, error) {
 		},
 	}
 	// rand.Read(dht.local[:])
-	dht.tb = newTable(dht, neighborSize)
+	dht.tb = newTable(dht, neighborSize, cfg.MaxNodes, cfg.NodeFilter)
 	dht.res = newResMgr(dht)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error

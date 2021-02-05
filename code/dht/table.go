@@ -175,7 +175,9 @@ type table struct {
 	addrIndex map[string]*node
 	k         int
 	size      int
+	maxSize   int
 	maxBits   int
+	filter    func([20]byte) bool
 
 	// runtime
 	ctx    context.Context
@@ -191,13 +193,15 @@ func bits(n int) int {
 	return size
 }
 
-func newTable(dht *DHT, k int) *table {
+func newTable(dht *DHT, k, max int, filter func([20]byte) bool) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
 		addrIndex: make(map[string]*node),
 		k:         k,
 		maxBits:   len(emptyHash)*8 - bits(k),
+		maxSize:   max,
+		filter:    filter,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
 	go func() {
@@ -254,6 +258,14 @@ func (t *table) discovery(limit int) {
 }
 
 func (t *table) add(n *node) bool {
+	if t.size >= t.maxSize {
+		return false
+	}
+	if t.filter != nil {
+		if t.filter(n.id) {
+			return false
+		}
+	}
 	t.Lock()
 	defer t.Unlock()
 	next := t.root

@@ -4,9 +4,11 @@ import "time"
 
 // Config dht config
 type Config struct {
-	Listen    uint16        // Default: 6881
-	MinNodes  int           // Default: 10000
-	TxTimeout time.Duration // Default: 30s
+	Listen     uint16              // Default: 6881
+	MinNodes   int                 // Default: 10000
+	MaxNodes   int                 // Default: 1000000
+	TxTimeout  time.Duration       // Default: 30s
+	NodeFilter func([20]byte) bool // filter func for node id
 }
 
 // NewConfig create default config
@@ -22,6 +24,9 @@ func (cfg *Config) checkDefault() {
 	}
 	if cfg.MinNodes <= 0 {
 		cfg.MinNodes = 10000
+	}
+	if cfg.MaxNodes <= 0 {
+		cfg.MaxNodes = 1000000
 	}
 	if cfg.TxTimeout <= 0 {
 		cfg.TxTimeout = 30 * time.Second
