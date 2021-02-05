@@ -262,7 +262,7 @@ func (t *table) add(n *node) bool {
 		return false
 	}
 	if t.filter != nil {
-		if t.filter(n.id) {
+		if !n.isBootstrap && t.filter(n.id) {
 			return false
 		}
 	}
