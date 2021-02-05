@@ -8,6 +8,7 @@ type Config struct {
 	MinNodes   int                 // Default: 10000
 	MaxNodes   int                 // Default: 1000000
 	TxTimeout  time.Duration       // Default: 30s
+	GenID      func() [20]byte     // generate find id
 	NodeFilter func([20]byte) bool // filter func for node id
 }
 

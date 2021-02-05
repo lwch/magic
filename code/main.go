@@ -34,8 +34,20 @@ func init() {
 func main() {
 	cfg := dht.NewConfig()
 	cfg.MinNodes = 100000
+	// save xunlei nodes
+	cfg.GenID = func() [20]byte {
+		var id [20]byte
+		id[0] = '-'
+		id[1] = 'X'
+		id[2] = 'L'
+		rand.Read(id[3:])
+		for i := 3; i < 7; i++ {
+			id[i] = '0' + id[i]%10
+		}
+		id[7] = '-'
+		return id
+	}
 	cfg.NodeFilter = func(id [20]byte) bool {
-		// save xunlei nodes
 		if id[0] != '-' {
 			return true
 		}

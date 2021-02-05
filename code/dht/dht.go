@@ -65,6 +65,7 @@ type DHT struct {
 	Out      chan MetaInfo // discovery file info
 	Nodes    chan int      // current node count
 	nodePool sync.Pool
+	gen      func() [20]byte
 
 	// runtime
 	ctx    context.Context
@@ -82,6 +83,7 @@ func New(cfg *Config) (*DHT, error) {
 		minNodes: cfg.MinNodes,
 		Out:      make(chan MetaInfo),
 		Nodes:    make(chan int),
+		gen:      cfg.GenID,
 	}
 	dht.nodePool = sync.Pool{
 		New: func() interface{} {
@@ -89,7 +91,7 @@ func New(cfg *Config) (*DHT, error) {
 		},
 	}
 	// rand.Read(dht.local[:])
-	dht.tb = newTable(dht, neighborSize, cfg.MaxNodes, cfg.NodeFilter)
+	dht.tb = newTable(dht, neighborSize, cfg.MaxNodes, cfg.GenID, cfg.NodeFilter)
 	dht.res = newResMgr(dht)
 	dht.ctx, dht.cancel = context.WithCancel(context.Background())
 	var err error
@@ -114,7 +116,7 @@ func (dht *DHT) Close() {
 func (dht *DHT) Discovery(addrs []*net.UDPAddr) {
 	for _, addr := range addrs {
 		node := newBootstrapNode(dht, *addr)
-		node.sendDiscovery()
+		node.sendDiscovery(dht.gen)
 		dht.tb.add(node)
 	}
 	dht.tb.discovery(maxDiscoverySize)

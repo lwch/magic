@@ -177,6 +177,7 @@ type table struct {
 	size      int
 	maxSize   int
 	maxBits   int
+	gen       func() [20]byte
 	filter    func([20]byte) bool
 
 	// runtime
@@ -193,7 +194,9 @@ func bits(n int) int {
 	return size
 }
 
-func newTable(dht *DHT, k, max int, filter func([20]byte) bool) *table {
+func newTable(dht *DHT, k, max int,
+	gen func() [20]byte,
+	filter func([20]byte) bool) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
@@ -201,6 +204,7 @@ func newTable(dht *DHT, k, max int, filter func([20]byte) bool) *table {
 		k:         k,
 		maxBits:   len(emptyHash)*8 - bits(k),
 		maxSize:   max,
+		gen:       gen,
 		filter:    filter,
 	}
 	tb.ctx, tb.cancel = context.WithCancel(context.Background())
@@ -231,7 +235,7 @@ func (t *table) discoverySend(bk *bucket, limit *int) {
 	}
 	if bk.isLeaf() {
 		for n := bk.nodes.Front(); n != nil; n = n.Next() {
-			n.Value.(*node).sendDiscovery()
+			n.Value.(*node).sendDiscovery(t.gen)
 		}
 		*limit -= bk.nodes.Len()
 		t.Lock()

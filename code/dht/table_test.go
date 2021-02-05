@@ -20,7 +20,7 @@ func TestTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	table := newTable(dht, 8, 1000000, nil)
+	table := newTable(dht, 8, 1000000, nil, nil)
 	var id hashType
 	for i := 0; i < 10000; i++ {
 		rand.Read(id[:])

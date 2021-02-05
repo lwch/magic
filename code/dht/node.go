@@ -48,9 +48,13 @@ func (n *node) close() {
 }
 
 // http://www.bittorrent.org/beps/bep_0005.html
-func (n *node) sendDiscovery() {
+func (n *node) sendDiscovery(fn func() [20]byte) {
 	var next [20]byte
-	rand.Read(next[:])
+	if fn != nil {
+		next = fn()
+	} else {
+		rand.Read(next[:])
+	}
 	pkt, tx, err := data.FindReq(n.dht.local, next)
 	if err != nil {
 		logging.Error("build find_node packet failed" + n.errInfo(err))
