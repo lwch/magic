@@ -178,7 +178,7 @@ type table struct {
 	maxSize   int
 	maxBits   int
 	gen       func() [20]byte
-	filter    func([20]byte) bool
+	filter    func(net.IP, [20]byte) bool
 
 	// runtime
 	ctx    context.Context
@@ -196,7 +196,7 @@ func bits(n int) int {
 
 func newTable(dht *DHT, k, max int,
 	gen func() [20]byte,
-	filter func([20]byte) bool) *table {
+	filter func(net.IP, [20]byte) bool) *table {
 	tb := &table{
 		dht:       dht,
 		root:      newBucket(emptyHash, 0),
@@ -266,7 +266,7 @@ func (t *table) add(n *node) bool {
 		return false
 	}
 	if t.filter != nil {
-		if !n.isBootstrap && t.filter(n.id) {
+		if !n.isBootstrap && t.filter(n.addr.IP, n.id) {
 			return false
 		}
 	}

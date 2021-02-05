@@ -11,6 +11,7 @@ import (
 	"github.com/lwch/magic/code/dht"
 	"github.com/lwch/magic/code/logging"
 	"github.com/lwch/runtime"
+	"github.com/oschwald/geoip2-golang"
 )
 
 var bootstrapAddrs []*net.UDPAddr
@@ -32,9 +33,11 @@ func init() {
 }
 
 func main() {
+	geo, err := geoip2.Open("GeoLite2-Country.mmdb")
+	runtime.Assert(err)
 	cfg := dht.NewConfig()
 	cfg.MinNodes = 100000
-	// save xunlei nodes
+	// save china nodes
 	cfg.GenID = func() [20]byte {
 		var id [20]byte
 		id[0] = '-'
@@ -47,18 +50,14 @@ func main() {
 		id[7] = '-'
 		return id
 	}
-	// cfg.NodeFilter = func(id [20]byte) bool {
-	// 	if id[0] != '-' {
-	// 		return true
-	// 	}
-	// 	if id[1] != 'X' {
-	// 		return true
-	// 	}
-	// 	if id[2] != 'L' {
-	// 		return true
-	// 	}
-	// 	return false
-	// }
+	cfg.NodeFilter = func(ip net.IP, id [20]byte) bool {
+		country, err := geo.Country(ip)
+		if err != nil {
+			return true
+		}
+		logging.Info("country: %v", country)
+		return false
+	}
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)

@@ -1,15 +1,18 @@
 package dht
 
-import "time"
+import (
+	"net"
+	"time"
+)
 
 // Config dht config
 type Config struct {
-	Listen     uint16              // Default: 6881
-	MinNodes   int                 // Default: 10000
-	MaxNodes   int                 // Default: 1000000
-	TxTimeout  time.Duration       // Default: 30s
-	GenID      func() [20]byte     // generate find id
-	NodeFilter func([20]byte) bool // filter func for node id
+	Listen     uint16                      // Default: 6881
+	MinNodes   int                         // Default: 10000
+	MaxNodes   int                         // Default: 1000000
+	TxTimeout  time.Duration               // Default: 30s
+	GenID      func() [20]byte             // generate find id
+	NodeFilter func(net.IP, [20]byte) bool // filter func for node id
 }
 
 // NewConfig create default config
