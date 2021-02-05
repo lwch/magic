@@ -55,8 +55,7 @@ func main() {
 		if err != nil {
 			return true
 		}
-		logging.Info("country: %v", country)
-		return false
+		return country.Continent.Names["zh-CN"] != "亚洲"
 	}
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
