@@ -37,7 +37,7 @@ func main() {
 	runtime.Assert(err)
 	cfg := dht.NewConfig()
 	cfg.MinNodes = 100000
-	// save china nodes
+	// save without asia nodes
 	cfg.GenID = func() [20]byte {
 		var id [20]byte
 		id[0] = '-'
@@ -55,7 +55,7 @@ func main() {
 		if err != nil {
 			return true
 		}
-		return country.Continent.Names["zh-CN"] != "亚洲"
+		return country.Continent.Names["zh-CN"] == "亚洲"
 	}
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
