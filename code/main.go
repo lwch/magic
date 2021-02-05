@@ -47,18 +47,18 @@ func main() {
 		id[7] = '-'
 		return id
 	}
-	cfg.NodeFilter = func(id [20]byte) bool {
-		if id[0] != '-' {
-			return true
-		}
-		if id[1] != 'X' {
-			return true
-		}
-		if id[2] != 'L' {
-			return true
-		}
-		return false
-	}
+	// cfg.NodeFilter = func(id [20]byte) bool {
+	// 	if id[0] != '-' {
+	// 		return true
+	// 	}
+	// 	if id[1] != 'X' {
+	// 		return true
+	// 	}
+	// 	if id[2] != 'L' {
+	// 		return true
+	// 	}
+	// 	return false
+	// }
 	mgr, err := dht.New(cfg)
 	runtime.Assert(err)
 	mgr.Discovery(bootstrapAddrs)
