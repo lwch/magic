@@ -1,6 +1,8 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/lwch/bencode v0.0.0-20210202083433-4180d42a0321 h1:/LYventVGxUInd+zso2AzQ6lO2tkW6xAHpLTV8Z1+jk=
 github.com/lwch/bencode v0.0.0-20210202083433-4180d42a0321/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
+github.com/lwch/bencode v1.0.1-0.20210207065411-6b997d28d8fa h1:KAt0sEANc0m8WUdgROKuz1Oup10jELK+2MUkMEBozZs=
+github.com/lwch/bencode v1.0.1-0.20210207065411-6b997d28d8fa/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d/go.mod h1:uEt0zu1MDC7WnVvodPBGSYAD/KMKk0v36xE8UE5veM8=
 github.com/oschwald/geoip2-golang v1.4.0 h1:5RlrjCgRyIGDz/mBmPfnAF4h8k0IAcRv9PvrpOfz+Ug=
