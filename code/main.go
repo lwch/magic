@@ -54,6 +54,7 @@ func dbInit(db *sql.DB) {
 		created integer,
 		hash text NOT NULL,
 		name text NOT NULL,
+		length integer,
 		data text NOT NULL
 	)`)
 	exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hash ON resource(hash)`)
@@ -85,8 +86,8 @@ func run(listen uint16, minNodes, maxNodes int, db *sql.DB) {
 	for info := range mgr.Out {
 		data, _ := json.Marshal(info)
 		logging.Info("info: %s", string(data))
-		_, err = db.Exec("INSERT OR IGNORE INTO resource(created, hash, name, data) VALUES(?, ?, ?, ?)",
-			time.Now().Unix(), info.Hash, info.Name, string(data))
+		_, err = db.Exec("INSERT OR IGNORE INTO resource(created, hash, name, length, data) VALUES(?, ?, ?, ?, ?)",
+			time.Now().Unix(), info.Hash, info.Name, info.Length, string(data))
 		if err != nil {
 			logging.Error("log resource failed, hash=%s, err=%v", info.Hash, err)
 		}
