@@ -1,24 +1,22 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"flag"
 	"math/rand"
 	"net"
-	"net/http"
-	_ "net/http/pprof"
 	"time"
 
 	"github.com/lwch/magic/code/dht"
 	"github.com/lwch/magic/code/logging"
 	"github.com/lwch/runtime"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var bootstrapAddrs []*net.UDPAddr
 
 func init() {
-	go func() {
-		runtime.Assert(http.ListenAndServe(":6060", nil))
-	}()
 	rand.Seed(time.Now().UnixNano())
 	for _, addr := range []string{
 		"router.bittorrent.com:6881",
@@ -32,8 +30,39 @@ func init() {
 }
 
 func main() {
+	listen := flag.Uint("listen", 6881, "listen port")
+	minNodes := flag.Int("min-nodes", 100000, "minimum nodes in descovery")
+	maxNodes := flag.Int("max-nodes", 1000000, "maximum nodes in descovery")
+	dbAddr := flag.String("db", "data.db", "sqlite save dir")
+	flag.Parse()
+
+	db, err := sql.Open("sqlite3", "file:"+*dbAddr+"?cache=shared")
+	runtime.Assert(err)
+	defer db.Close()
+	dbInit(db)
+
+	run(uint16(*listen), *minNodes, *maxNodes, db)
+}
+
+func dbInit(db *sql.DB) {
+	exec := func(qry string, args ...interface{}) {
+		_, err := db.Exec(qry, args...)
+		runtime.Assert(err)
+	}
+	exec(`CREATE TABLE IF NOT EXISTS resource(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		hash text NOT NULL,
+		name text NOT NULL,
+		data text NOT NULL
+	)`)
+	exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hash ON resource(hash)`)
+}
+
+func run(listen uint16, minNodes, maxNodes int, db *sql.DB) {
 	cfg := dht.NewConfig()
-	cfg.MinNodes = 100000
+	cfg.Listen = listen
+	cfg.MinNodes = minNodes
+	cfg.MaxNodes = maxNodes
 	cfg.NodeFilter = func(ip net.IP, id [20]byte) bool {
 		return false
 	}
@@ -52,13 +81,10 @@ func main() {
 			logging.Info("%d nodes", nodes)
 		}
 	}()
-	uniq := make(map[string]bool)
 	for info := range mgr.Out {
-		if uniq[info.Hash] {
-			continue
-		}
 		data, _ := json.Marshal(info)
 		logging.Info("info: %s", string(data))
-		uniq[info.Hash] = true
+		db.Exec("INSERT IGNORE INTO resource(hash, name, data) VALUES(?, ?, ?)",
+			info.Hash, info.Name, string(data))
 	}
 }

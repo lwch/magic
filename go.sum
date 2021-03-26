@@ -2,3 +2,5 @@ github.com/lwch/bencode v1.0.1-0.20210207065411-6b997d28d8fa h1:KAt0sEANc0m8WUdg
 github.com/lwch/bencode v1.0.1-0.20210207065411-6b997d28d8fa/go.mod h1:1hW52J7ysJmG7Kv8HyaZTqMhFtSrB8ztr/cJFzspYeY=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d/go.mod h1:uEt0zu1MDC7WnVvodPBGSYAD/KMKk0v36xE8UE5veM8=
+github.com/mattn/go-sqlite3 v1.14.6 h1:dNPt6NO46WmLVt2DLNpwczCmdV5boIZ6g/tlDrlRUbg=
+github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=

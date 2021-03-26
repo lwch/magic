@@ -4,3 +4,6 @@ github.com/lwch/bencode
 # github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d
 ## explicit
 github.com/lwch/runtime
+# github.com/mattn/go-sqlite3 v1.14.6
+## explicit
+github.com/mattn/go-sqlite3
