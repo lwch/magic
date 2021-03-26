@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lwch/magic/code/dht"
@@ -39,7 +40,8 @@ func main() {
 	dbAddr := flag.String("db", "data.db", "sqlite save dir")
 	flag.Parse()
 
-	req, err := http.NewRequest("POST", "http://127.0.0.1:9091/transmission/rpc", nil)
+	req, err := http.NewRequest("POST", "http://127.0.0.1:9091/transmission/rpc",
+		strings.NewReader(`{"method":"session-get"}`))
 	runtime.Assert(err)
 	req.SetBasicAuth("", "")
 	resp, err := http.DefaultClient.Do(req)
