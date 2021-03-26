@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/lwch/magic/code/dht"
@@ -35,6 +38,16 @@ func main() {
 	maxNodes := flag.Int("max-nodes", 1000000, "maximum nodes in descovery")
 	dbAddr := flag.String("db", "data.db", "sqlite save dir")
 	flag.Parse()
+
+	req, err := http.NewRequest("POST", "http://127.0.0.1:9091/transmission/rpc", nil)
+	runtime.Assert(err)
+	req.SetBasicAuth("", "")
+	resp, err := http.DefaultClient.Do(req)
+	runtime.Assert(err)
+	defer resp.Body.Close()
+	data, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(data))
+	return
 
 	db, err := sql.Open("sqlite3", "file:"+*dbAddr+"?cache=shared")
 	runtime.Assert(err)
