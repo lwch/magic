@@ -4,15 +4,3 @@ github.com/lwch/bencode
 # github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d
 ## explicit
 github.com/lwch/runtime
-# github.com/oschwald/geoip2-golang v1.5.0
-## explicit
-github.com/oschwald/geoip2-golang
-# github.com/oschwald/maxminddb-golang v1.8.0
-github.com/oschwald/maxminddb-golang
-# golang.org/x/sys v0.0.0-20210324051608-47abb6519492
-## explicit
-golang.org/x/sys/internal/unsafeheader
-golang.org/x/sys/unix
-golang.org/x/sys/windows
-# gopkg.in/yaml.v2 v2.2.2
-## explicit
