@@ -66,16 +66,17 @@ type Enterprise struct {
 		Names      map[string]string `maxminddb:"names"`
 	} `maxminddb:"subdivisions"`
 	Traits struct {
-		AutonomousSystemNumber       uint   `maxminddb:"autonomous_system_number"`
-		AutonomousSystemOrganization string `maxminddb:"autonomous_system_organization"`
-		ConnectionType               string `maxminddb:"connection_type"`
-		Domain                       string `maxminddb:"domain"`
-		IsAnonymousProxy             bool   `maxminddb:"is_anonymous_proxy"`
-		IsLegitimateProxy            bool   `maxminddb:"is_legitimate_proxy"`
-		IsSatelliteProvider          bool   `maxminddb:"is_satellite_provider"`
-		ISP                          string `maxminddb:"isp"`
-		Organization                 string `maxminddb:"organization"`
-		UserType                     string `maxminddb:"user_type"`
+		AutonomousSystemNumber       uint    `maxminddb:"autonomous_system_number"`
+		AutonomousSystemOrganization string  `maxminddb:"autonomous_system_organization"`
+		ConnectionType               string  `maxminddb:"connection_type"`
+		Domain                       string  `maxminddb:"domain"`
+		IsAnonymousProxy             bool    `maxminddb:"is_anonymous_proxy"`
+		IsLegitimateProxy            bool    `maxminddb:"is_legitimate_proxy"`
+		IsSatelliteProvider          bool    `maxminddb:"is_satellite_provider"`
+		ISP                          string  `maxminddb:"isp"`
+		StaticIPScore                float64 `maxminddb:"static_ip_score"`
+		Organization                 string  `maxminddb:"organization"`
+		UserType                     string  `maxminddb:"user_type"`
 	} `maxminddb:"traits"`
 }
 
@@ -167,11 +168,12 @@ type Country struct {
 // The AnonymousIP struct corresponds to the data in the GeoIP2
 // Anonymous IP database.
 type AnonymousIP struct {
-	IsAnonymous       bool `maxminddb:"is_anonymous"`
-	IsAnonymousVPN    bool `maxminddb:"is_anonymous_vpn"`
-	IsHostingProvider bool `maxminddb:"is_hosting_provider"`
-	IsPublicProxy     bool `maxminddb:"is_public_proxy"`
-	IsTorExitNode     bool `maxminddb:"is_tor_exit_node"`
+	IsAnonymous        bool `maxminddb:"is_anonymous"`
+	IsAnonymousVPN     bool `maxminddb:"is_anonymous_vpn"`
+	IsHostingProvider  bool `maxminddb:"is_hosting_provider"`
+	IsPublicProxy      bool `maxminddb:"is_public_proxy"`
+	IsResidentialProxy bool `maxminddb:"is_residential_proxy"`
+	IsTorExitNode      bool `maxminddb:"is_tor_exit_node"`
 }
 
 // The ASN struct corresponds to the data in the GeoLite2 ASN database.
@@ -272,13 +274,14 @@ func getDBType(reader *maxminddb.Reader) (databaseType, error) {
 	switch reader.Metadata.DatabaseType {
 	case "GeoIP2-Anonymous-IP":
 		return isAnonymousIP, nil
-	case "GeoLite2-ASN":
+	case "DBIP-ASN-Lite (compat=GeoLite2-ASN)",
+		"GeoLite2-ASN":
 		return isASN, nil
 	// We allow City lookups on Country for back compat
 	case "DBIP-City-Lite",
-		"DBIP-City",
 		"DBIP-Country-Lite",
 		"DBIP-Country",
+		"DBIP-Location (compat=City)",
 		"GeoLite2-City",
 		"GeoIP2-City",
 		"GeoIP2-City-Africa",
@@ -294,7 +297,8 @@ func getDBType(reader *maxminddb.Reader) (databaseType, error) {
 		return isConnectionType, nil
 	case "GeoIP2-Domain":
 		return isDomain, nil
-	case "DBIP-Location-ISP (compat=Enterprise)",
+	case "DBIP-ISP (compat=Enterprise)",
+		"DBIP-Location-ISP (compat=Enterprise)",
 		"GeoIP2-Enterprise":
 		return isEnterprise | isCity | isCountry, nil
 	case "GeoIP2-ISP",

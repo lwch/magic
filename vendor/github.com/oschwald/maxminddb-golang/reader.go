@@ -1,3 +1,4 @@
+// Package maxminddb provides a reader for the MaxMind DB file format.
 package maxminddb
 
 import (
@@ -226,6 +227,11 @@ func (r *Reader) decode(offset uintptr, result interface{}) error {
 		return errors.New("result param must be a pointer")
 	}
 
+	if dser, ok := result.(deserializer); ok {
+		_, err := r.decoder.decodeToDeserializer(uint(offset), dser, 0)
+		return err
+	}
+
 	_, err := r.decoder.decode(uint(offset), rv, 0)
 	return err
 }
@@ -249,7 +255,20 @@ func (r *Reader) lookupPointer(ip net.IP) (uint, int, net.IP, error) {
 	if bitCount == 32 {
 		node = r.ipv4Start
 	}
+	node, prefixLength := r.traverseTree(ip, node, bitCount)
 
+	nodeCount := r.Metadata.NodeCount
+	if node == nodeCount {
+		// Record is empty
+		return 0, prefixLength, ip, nil
+	} else if node > nodeCount {
+		return node, prefixLength, ip, nil
+	}
+
+	return 0, prefixLength, ip, newInvalidDatabaseError("invalid node in search tree")
+}
+
+func (r *Reader) traverseTree(ip net.IP, node, bitCount uint) (uint, int) {
 	nodeCount := r.Metadata.NodeCount
 
 	i := uint(0)
@@ -263,14 +282,8 @@ func (r *Reader) lookupPointer(ip net.IP) (uint, int, net.IP, error) {
 			node = r.nodeReader.readRight(offset)
 		}
 	}
-	if node == nodeCount {
-		// Record is empty
-		return 0, int(i), ip, nil
-	} else if node > nodeCount {
-		return node, int(i), ip, nil
-	}
 
-	return 0, int(i), ip, newInvalidDatabaseError("invalid node in search tree")
+	return node, int(i)
 }
 
 func (r *Reader) retrieveData(pointer uint, result interface{}) error {
@@ -282,7 +295,7 @@ func (r *Reader) retrieveData(pointer uint, result interface{}) error {
 }
 
 func (r *Reader) resolveDataPointer(pointer uint) (uintptr, error) {
-	var resolved = uintptr(pointer - r.Metadata.NodeCount - dataSectionSeparatorSize)
+	resolved := uintptr(pointer - r.Metadata.NodeCount - dataSectionSeparatorSize)
 
 	if resolved >= uintptr(len(r.buffer)) {
 		return 0, newInvalidDatabaseError("the MaxMind DB file's search tree is corrupt")
