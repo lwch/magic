@@ -51,6 +51,7 @@ func dbInit(db *sql.DB) {
 	}
 	exec(`CREATE TABLE IF NOT EXISTS resource(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		created integer,
 		hash text NOT NULL,
 		name text NOT NULL,
 		data text NOT NULL
@@ -84,8 +85,8 @@ func run(listen uint16, minNodes, maxNodes int, db *sql.DB) {
 	for info := range mgr.Out {
 		data, _ := json.Marshal(info)
 		logging.Info("info: %s", string(data))
-		_, err = db.Exec("INSERT OR IGNORE INTO resource(hash, name, data) VALUES(?, ?, ?)",
-			info.Hash, info.Name, string(data))
+		_, err = db.Exec("INSERT OR IGNORE INTO resource(created, hash, name, data) VALUES(?, ?, ?, ?)",
+			time.Now().Unix(), info.Hash, info.Name, string(data))
 		if err != nil {
 			logging.Error("log resource failed, hash=%s, err=%v", info.Hash, err)
 		}
