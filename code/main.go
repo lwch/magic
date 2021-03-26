@@ -84,7 +84,10 @@ func run(listen uint16, minNodes, maxNodes int, db *sql.DB) {
 	for info := range mgr.Out {
 		data, _ := json.Marshal(info)
 		logging.Info("info: %s", string(data))
-		db.Exec("INSERT IGNORE INTO resource(hash, name, data) VALUES(?, ?, ?)",
+		_, err = db.Exec("INSERT IGNORE INTO resource(hash, name, data) VALUES(?, ?, ?)",
 			info.Hash, info.Name, string(data))
+		if err != nil {
+			logging.Error("log resource failed, hash=%s, err=%v", info.Hash, err)
+		}
 	}
 }
