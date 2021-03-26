@@ -47,6 +47,15 @@ func main() {
 	resp, err := http.DefaultClient.Do(req)
 	runtime.Assert(err)
 	defer resp.Body.Close()
+	session := resp.Header.Get("X-Transmission-Session-Id")
+	req, err = http.NewRequest("POST", "http://127.0.0.1:9091/transmission/rpc",
+		strings.NewReader(`{"method":"session-get"}`))
+	runtime.Assert(err)
+	req.Header.Set("X-Transmission-Session-Id", session)
+	req.SetBasicAuth("", "")
+	resp, err = http.DefaultClient.Do(req)
+	runtime.Assert(err)
+	defer resp.Body.Close()
 	data, _ := ioutil.ReadAll(resp.Body)
 	fmt.Println(string(data))
 	return
