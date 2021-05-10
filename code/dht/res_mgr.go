@@ -16,6 +16,7 @@ import (
 )
 
 const protocol = "BitTorrent protocol"
+const resTimeout = 10 * time.Second
 
 // http://www.bittorrent.org/beps/bep_0010.html
 const extMsgID = byte(20)
@@ -115,7 +116,7 @@ func makeHandshake(hash hashType) []byte {
 
 func readHandshake(c net.Conn) error {
 	var l [1]byte
-	c.SetReadDeadline(time.Now().Add(10 * time.Second))
+	c.SetReadDeadline(time.Now().Add(resTimeout))
 	_, err := c.Read(l[:])
 	if err != nil {
 		return err
@@ -137,7 +138,7 @@ func readHandshake(c net.Conn) error {
 
 // http://www.bittorrent.org/beps/bep_0010.html
 func sendMessage(c net.Conn, msgID, extID byte, payload []byte) error {
-	c.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	c.SetWriteDeadline(time.Now().Add(resTimeout))
 	err := binary.Write(c, binary.BigEndian, uint32(len(payload)+2))
 	if err != nil {
 		return err
@@ -151,7 +152,7 @@ func sendMessage(c net.Conn, msgID, extID byte, payload []byte) error {
 
 // http://www.bittorrent.org/beps/bep_0010.html
 func readMessage(c net.Conn) (uint8, uint8, []byte, error) {
-	c.SetReadDeadline(time.Now().Add(10 * time.Second))
+	c.SetReadDeadline(time.Now().Add(resTimeout))
 	var l uint32
 	err := binary.Read(c, binary.BigEndian, &l)
 	if err != nil {
